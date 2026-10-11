@@ -23,6 +23,12 @@ import { screenFiles } from "../screen-files";
 import { DropZone } from "./drop-zone";
 
 const LIST_QUERY = { limit: 50 } as const;
+/** The three steps shown before the first result. */
+const HOW_IT_WORKS: [string, string][] = [
+  ["Ask", "type the thing to check for"],
+  ["Drop", "add one or more images"],
+  ["Review", "read each verdict; low confidence waits in Review"],
+];
 const POLL_MS = 2000;
 
 function inFlight(item: ClassificationOut): boolean {
@@ -154,10 +160,28 @@ export function ClassifyPanel({
             {QUESTION_LABEL_HINT}
           </span>
         </form>
+        <p className="text-xs text-muted-foreground">
+          {`The check runs as: is this a ${questionLabel}? Change it to run any yes or no visual check.`}
+        </p>
         {query.data && isEmpty(query.data) && (
-          <p className="text-sm text-muted-foreground">
-            No results yet. Drop an image to get the first verdict.
-          </p>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              No results yet. Drop an image to get the first verdict.
+            </p>
+            <ol
+              aria-label="How it works"
+              className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground"
+            >
+              {HOW_IT_WORKS.map(([step, text], index) => (
+                <li key={step}>
+                  <span className="font-medium text-foreground">
+                    {index + 1}. {step}:
+                  </span>{" "}
+                  {text}
+                </li>
+              ))}
+            </ol>
+          </div>
         )}
         <DropZone onFiles={handleFiles} disabled={!questionValid} />
         {uploading > 0 && (

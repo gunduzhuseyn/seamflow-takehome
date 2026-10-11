@@ -6,7 +6,7 @@ export function HistoryRoute() {
     <>
       <PageHeader
         title="History"
-        description="Every classification in your organization, with filters and CSV export."
+        description="Browse every classification your organization ran, newest first, filter it, or export CSV."
       />
       <HistoryTable />
     </>

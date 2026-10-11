@@ -8,7 +8,7 @@ export function ClassifyRoute() {
     <>
       <PageHeader
         title="Classify"
-        description={`Current check: is this a ${questionLabel}?`}
+        description={`Drop images to get a verdict on the current check: is this a ${questionLabel}?`}
       />
       <ClassifyPanel
         questionLabel={questionLabel}

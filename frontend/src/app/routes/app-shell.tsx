@@ -13,10 +13,22 @@ const USER_BUTTON_APPEARANCE = {
 };
 
 const NAV = [
-  { to: "/", label: "Classify" },
-  { to: "/review", label: "Review" },
-  { to: "/history", label: "History" },
-  { to: "/dashboard", label: "Dashboard" },
+  { to: "/", label: "Classify", hint: "Drop images and read verdicts" },
+  {
+    to: "/review",
+    label: "Review",
+    hint: "Confirm or override uncertain verdicts",
+  },
+  {
+    to: "/history",
+    label: "History",
+    hint: "Every classification, with filters and CSV export",
+  },
+  {
+    to: "/dashboard",
+    label: "Dashboard",
+    hint: "Totals and rates for the organization",
+  },
 ];
 
 /** Signed-in frame: left sidebar with navigation, top bar with org and account. */
@@ -31,11 +43,12 @@ export function AppShell() {
         </div>
         <nav aria-label="Main" className="px-2">
           <ul className="space-y-0.5">
-            {NAV.map(({ to, label }) => (
+            {NAV.map(({ to, label, hint }) => (
               <li key={to}>
                 <NavLink
                   to={to}
                   end={to === "/"}
+                  title={hint}
                   className={({ isActive }) =>
                     cn(
                       "block rounded-md px-2 py-1.5 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",

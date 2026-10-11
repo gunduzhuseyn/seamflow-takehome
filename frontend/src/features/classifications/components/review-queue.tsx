@@ -42,7 +42,7 @@ export function ReviewQueue() {
       <QueryResult
         query={query}
         isEmpty={(data) => pendingItems(data).length === 0}
-        emptyMessage="Nothing waiting for review"
+        emptyMessage="Results under the confidence threshold wait here. Nothing is pending."
       >
         {(data) => (
           <Table>

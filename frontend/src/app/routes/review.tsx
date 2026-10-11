@@ -6,7 +6,7 @@ export function ReviewRoute() {
     <>
       <PageHeader
         title="Review"
-        description="Confirm or override verdicts below the confidence threshold."
+        description="Confirm or override each verdict that scored below the confidence threshold."
       />
       <ReviewQueue />
     </>

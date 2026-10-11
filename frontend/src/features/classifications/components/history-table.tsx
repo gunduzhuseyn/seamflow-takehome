@@ -232,7 +232,11 @@ export function HistoryTable() {
       <QueryResult
         query={query}
         isEmpty={(data) => data.items.length === 0}
-        emptyMessage="No classifications match these filters."
+        emptyMessage={
+          filters.verdict || filters.review_status
+            ? "No classifications match these filters."
+            : "Nothing classified yet. Drop an image on the Classify page to run the first check."
+        }
       >
         {(data) => (
           <>
