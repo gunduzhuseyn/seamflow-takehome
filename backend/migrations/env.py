@@ -19,6 +19,7 @@ configure_logging(LoggingSettings())
 
 # Models register on Base.metadata when imported. Import them here.
 import app.auth.models  # noqa: E402, F401  # pyright: ignore[reportUnusedImport]
+import app.classifications.models  # noqa: E402, F401  # pyright: ignore[reportUnusedImport]
 import app.jobs.models  # noqa: E402, F401  # pyright: ignore[reportUnusedImport]
 import app.llm.models  # noqa: E402, F401  # pyright: ignore[reportUnusedImport]
 

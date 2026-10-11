@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AuthMeData, AuthMeErrors, AuthMeResponses, HealthHealthData, HealthHealthErrors, HealthHealthResponses, JobsGetData, JobsGetErrors, JobsGetResponses, LlmCallsGetData, LlmCallsGetErrors, LlmCallsGetResponses, OrgsRenameCurrentData, OrgsRenameCurrentErrors, OrgsRenameCurrentResponses } from './types.gen';
+import type { AuthMeData, AuthMeErrors, AuthMeResponses, ClassificationsCreateData, ClassificationsCreateErrors, ClassificationsCreateResponses, ClassificationsCreateUploadData, ClassificationsCreateUploadErrors, ClassificationsCreateUploadResponses, ClassificationsGetData, ClassificationsGetErrors, ClassificationsGetResponses, ClassificationsListData, ClassificationsListErrors, ClassificationsListResponses, HealthHealthData, HealthHealthErrors, HealthHealthResponses, JobsGetData, JobsGetErrors, JobsGetResponses, LlmCallsGetData, LlmCallsGetErrors, LlmCallsGetResponses, OrgsRenameCurrentData, OrgsRenameCurrentErrors, OrgsRenameCurrentResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -43,6 +43,50 @@ export const orgsRenameCurrent = <ThrowOnError extends boolean = false>(options:
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Create Upload
+ */
+export const classificationsCreateUpload = <ThrowOnError extends boolean = false>(options: Options<ClassificationsCreateUploadData, ThrowOnError>): RequestResult<ClassificationsCreateUploadResponses, ClassificationsCreateUploadErrors, ThrowOnError> => (options.client ?? client).post<ClassificationsCreateUploadResponses, ClassificationsCreateUploadErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/uploads',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List
+ */
+export const classificationsList = <ThrowOnError extends boolean = false>(options?: Options<ClassificationsListData, ThrowOnError>): RequestResult<ClassificationsListResponses, ClassificationsListErrors, ThrowOnError> => (options?.client ?? client).get<ClassificationsListResponses, ClassificationsListErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/classifications',
+    ...options
+});
+
+/**
+ * Create
+ */
+export const classificationsCreate = <ThrowOnError extends boolean = false>(options: Options<ClassificationsCreateData, ThrowOnError>): RequestResult<ClassificationsCreateResponses, ClassificationsCreateErrors, ThrowOnError> => (options.client ?? client).post<ClassificationsCreateResponses, ClassificationsCreateErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/classifications',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get
+ */
+export const classificationsGet = <ThrowOnError extends boolean = false>(options: Options<ClassificationsGetData, ThrowOnError>): RequestResult<ClassificationsGetResponses, ClassificationsGetErrors, ThrowOnError> => (options.client ?? client).get<ClassificationsGetResponses, ClassificationsGetErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/classifications/{classification_id}',
+    ...options
 });
 
 /**

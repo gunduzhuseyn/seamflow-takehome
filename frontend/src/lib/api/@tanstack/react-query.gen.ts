@@ -3,8 +3,8 @@
 import { queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { authMe, healthHealth, jobsGet, llmCallsGet, type Options, orgsRenameCurrent } from '../sdk.gen';
-import type { AuthMeData, AuthMeError, AuthMeResponse, HealthHealthData, HealthHealthError, HealthHealthResponse, JobsGetData, JobsGetError, JobsGetResponse, LlmCallsGetData, LlmCallsGetError, LlmCallsGetResponse, OrgsRenameCurrentData, OrgsRenameCurrentError, OrgsRenameCurrentResponse } from '../types.gen';
+import { authMe, classificationsCreate, classificationsCreateUpload, classificationsGet, classificationsList, healthHealth, jobsGet, llmCallsGet, type Options, orgsRenameCurrent } from '../sdk.gen';
+import type { AuthMeData, AuthMeError, AuthMeResponse, ClassificationsCreateData, ClassificationsCreateError, ClassificationsCreateResponse, ClassificationsCreateUploadData, ClassificationsCreateUploadError, ClassificationsCreateUploadResponse, ClassificationsGetData, ClassificationsGetError, ClassificationsGetResponse, ClassificationsListData, ClassificationsListError, ClassificationsListResponse, HealthHealthData, HealthHealthError, HealthHealthResponse, JobsGetData, JobsGetError, JobsGetResponse, LlmCallsGetData, LlmCallsGetError, LlmCallsGetResponse, OrgsRenameCurrentData, OrgsRenameCurrentError, OrgsRenameCurrentResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -91,6 +91,76 @@ export const orgsRenameCurrentMutation = (options?: Partial<Options<OrgsRenameCu
     };
     return mutationOptions;
 };
+
+/**
+ * Create Upload
+ */
+export const classificationsCreateUploadMutation = (options?: Partial<Options<ClassificationsCreateUploadData>>): UseMutationOptions<ClassificationsCreateUploadResponse, ClassificationsCreateUploadError, Options<ClassificationsCreateUploadData>> => {
+    const mutationOptions: UseMutationOptions<ClassificationsCreateUploadResponse, ClassificationsCreateUploadError, Options<ClassificationsCreateUploadData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await classificationsCreateUpload({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const classificationsListQueryKey = (options?: Options<ClassificationsListData>) => createQueryKey('classificationsList', options);
+
+/**
+ * List
+ */
+export const classificationsListOptions = (options?: Options<ClassificationsListData>) => queryOptions<ClassificationsListResponse, ClassificationsListError, ClassificationsListResponse, ReturnType<typeof classificationsListQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await classificationsList({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: classificationsListQueryKey(options)
+});
+
+/**
+ * Create
+ */
+export const classificationsCreateMutation = (options?: Partial<Options<ClassificationsCreateData>>): UseMutationOptions<ClassificationsCreateResponse, ClassificationsCreateError, Options<ClassificationsCreateData>> => {
+    const mutationOptions: UseMutationOptions<ClassificationsCreateResponse, ClassificationsCreateError, Options<ClassificationsCreateData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await classificationsCreate({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const classificationsGetQueryKey = (options: Options<ClassificationsGetData>) => createQueryKey('classificationsGet', options);
+
+/**
+ * Get
+ */
+export const classificationsGetOptions = (options: Options<ClassificationsGetData>) => queryOptions<ClassificationsGetResponse, ClassificationsGetError, ClassificationsGetResponse, ReturnType<typeof classificationsGetQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await classificationsGet({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: classificationsGetQueryKey(options)
+});
 
 export const jobsGetQueryKey = (options: Options<JobsGetData>) => createQueryKey('jobsGet', options);
 

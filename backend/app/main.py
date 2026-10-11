@@ -9,6 +9,7 @@ from fastapi.routing import APIRoute
 from redis.asyncio import Redis
 
 from app.auth.router import router as auth_router
+from app.classifications.router import router as classifications_router
 from app.core.access_log import AccessLogMiddleware
 from app.core.clerk import ClerkBackend
 from app.core.config import LLMProviderName, Settings
@@ -90,6 +91,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.include_router(health_router)
     app.include_router(auth_router)
+    app.include_router(classifications_router)
     app.include_router(jobs_router)
     app.include_router(llm_router)
     return app

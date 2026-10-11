@@ -1,0 +1,12 @@
+[
+  {"type": "text", "text": "Looking at the image."},
+  {
+    "type": "tool_input",
+    "input": {
+      "verdict": "not_hot_dog",
+      "confidence": 0.62,
+      "observations": "A battered sausage on a stick, likely a corn dog, with no bun visible."
+    }
+  },
+  {"type": "usage", "input_tokens": 1600, "output_tokens": 60, "stop_reason": "tool_use"}
+]

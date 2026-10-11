@@ -117,6 +117,8 @@ class Settings(LoggingSettings):
     # 5xx, and connection errors.
     LLM_TIMEOUT_SECONDS: float = 60.0
     LLM_MAX_RETRIES: int = 2
+    # A verdict under this confidence goes to the review queue.
+    CLASSIFY_REVIEW_THRESHOLD: float = 0.85
 
     # Object storage through the S3 API: RustFS in Compose, Cloudflare R2 live.
     STORAGE_ENDPOINT_URL: str
