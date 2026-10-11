@@ -286,6 +286,56 @@ export type MembershipOut = {
 };
 
 /**
+ * MetricsOut
+ */
+export type MetricsOut = {
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Completed
+     */
+    completed: number;
+    /**
+     * Match
+     */
+    match: number;
+    /**
+     * No Match
+     */
+    no_match: number;
+    /**
+     * Pending Review
+     */
+    pending_review: number;
+    /**
+     * Reviewed
+     */
+    reviewed: number;
+    /**
+     * Overrides
+     */
+    overrides: number;
+    /**
+     * Override Rate
+     */
+    override_rate: number;
+    /**
+     * Avg Latency Ms
+     */
+    avg_latency_ms: number | null;
+    /**
+     * Total Cost Usd
+     */
+    total_cost_usd: number;
+    /**
+     * Deduplicated
+     */
+    deduplicated: number;
+};
+
+/**
  * OrgOut
  */
 export type OrgOut = {
@@ -311,6 +361,13 @@ export type OrgRename = {
      * Name
      */
     name: string;
+};
+
+/**
+ * ReviewCreate
+ */
+export type ReviewCreate = {
+    final_verdict: Verdict;
 };
 
 /**
@@ -616,6 +673,115 @@ export type ClassificationsCreateResponses = {
 };
 
 export type ClassificationsCreateResponse = ClassificationsCreateResponses[keyof ClassificationsCreateResponses];
+
+export type ClassificationsMetricsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Org-Id
+         */
+        'x-org-id'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/classifications/metrics';
+};
+
+export type ClassificationsMetricsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassificationsMetricsError = ClassificationsMetricsErrors[keyof ClassificationsMetricsErrors];
+
+export type ClassificationsMetricsResponses = {
+    /**
+     * Successful Response
+     */
+    200: MetricsOut;
+};
+
+export type ClassificationsMetricsResponse = ClassificationsMetricsResponses[keyof ClassificationsMetricsResponses];
+
+export type ClassificationsExportCsvData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Org-Id
+         */
+        'x-org-id'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Status
+         */
+        status?: ClassificationStatus | null;
+        /**
+         * Review Status
+         */
+        review_status?: ReviewStatus | null;
+        /**
+         * Verdict
+         */
+        verdict?: Verdict | null;
+    };
+    url: '/classifications/export.csv';
+};
+
+export type ClassificationsExportCsvErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassificationsExportCsvError = ClassificationsExportCsvErrors[keyof ClassificationsExportCsvErrors];
+
+export type ClassificationsExportCsvResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ClassificationsReviewData = {
+    body: ReviewCreate;
+    headers?: {
+        /**
+         * X-Org-Id
+         */
+        'x-org-id'?: string | null;
+    };
+    path: {
+        /**
+         * Classification Id
+         */
+        classification_id: string;
+    };
+    query?: never;
+    url: '/classifications/{classification_id}/review';
+};
+
+export type ClassificationsReviewErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassificationsReviewError = ClassificationsReviewErrors[keyof ClassificationsReviewErrors];
+
+export type ClassificationsReviewResponses = {
+    /**
+     * Successful Response
+     */
+    200: ClassificationOut;
+};
+
+export type ClassificationsReviewResponse = ClassificationsReviewResponses[keyof ClassificationsReviewResponses];
 
 export type ClassificationsGetData = {
     body?: never;

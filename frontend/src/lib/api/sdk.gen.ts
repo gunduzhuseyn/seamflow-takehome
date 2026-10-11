@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AuthMeData, AuthMeErrors, AuthMeResponses, ClassificationsCreateData, ClassificationsCreateErrors, ClassificationsCreateResponses, ClassificationsCreateUploadData, ClassificationsCreateUploadErrors, ClassificationsCreateUploadResponses, ClassificationsGetData, ClassificationsGetErrors, ClassificationsGetResponses, ClassificationsListData, ClassificationsListErrors, ClassificationsListResponses, HealthHealthData, HealthHealthErrors, HealthHealthResponses, JobsGetData, JobsGetErrors, JobsGetResponses, LlmCallsGetData, LlmCallsGetErrors, LlmCallsGetResponses, OrgsRenameCurrentData, OrgsRenameCurrentErrors, OrgsRenameCurrentResponses } from './types.gen';
+import type { AuthMeData, AuthMeErrors, AuthMeResponses, ClassificationsCreateData, ClassificationsCreateErrors, ClassificationsCreateResponses, ClassificationsCreateUploadData, ClassificationsCreateUploadErrors, ClassificationsCreateUploadResponses, ClassificationsExportCsvData, ClassificationsExportCsvErrors, ClassificationsExportCsvResponses, ClassificationsGetData, ClassificationsGetErrors, ClassificationsGetResponses, ClassificationsListData, ClassificationsListErrors, ClassificationsListResponses, ClassificationsMetricsData, ClassificationsMetricsErrors, ClassificationsMetricsResponses, ClassificationsReviewData, ClassificationsReviewErrors, ClassificationsReviewResponses, HealthHealthData, HealthHealthErrors, HealthHealthResponses, JobsGetData, JobsGetErrors, JobsGetResponses, LlmCallsGetData, LlmCallsGetErrors, LlmCallsGetResponses, OrgsRenameCurrentData, OrgsRenameCurrentErrors, OrgsRenameCurrentResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -73,6 +73,41 @@ export const classificationsList = <ThrowOnError extends boolean = false>(option
 export const classificationsCreate = <ThrowOnError extends boolean = false>(options: Options<ClassificationsCreateData, ThrowOnError>): RequestResult<ClassificationsCreateResponses, ClassificationsCreateErrors, ThrowOnError> => (options.client ?? client).post<ClassificationsCreateResponses, ClassificationsCreateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/classifications',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Metrics
+ */
+export const classificationsMetrics = <ThrowOnError extends boolean = false>(options?: Options<ClassificationsMetricsData, ThrowOnError>): RequestResult<ClassificationsMetricsResponses, ClassificationsMetricsErrors, ThrowOnError> => (options?.client ?? client).get<ClassificationsMetricsResponses, ClassificationsMetricsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/classifications/metrics',
+    ...options
+});
+
+/**
+ * Export Csv
+ *
+ * Every row that matches the list filters, newest first.
+ */
+export const classificationsExportCsv = <ThrowOnError extends boolean = false>(options?: Options<ClassificationsExportCsvData, ThrowOnError>): RequestResult<ClassificationsExportCsvResponses, ClassificationsExportCsvErrors, ThrowOnError> => (options?.client ?? client).get<ClassificationsExportCsvResponses, ClassificationsExportCsvErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/classifications/export.csv',
+    ...options
+});
+
+/**
+ * Review
+ *
+ * Confirm or override the model verdict of a completed row.
+ */
+export const classificationsReview = <ThrowOnError extends boolean = false>(options: Options<ClassificationsReviewData, ThrowOnError>): RequestResult<ClassificationsReviewResponses, ClassificationsReviewErrors, ThrowOnError> => (options.client ?? client).post<ClassificationsReviewResponses, ClassificationsReviewErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/classifications/{classification_id}/review',
     ...options,
     headers: {
         'Content-Type': 'application/json',

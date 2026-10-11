@@ -75,8 +75,8 @@ export type ReviewCreate = {
 export type MetricsOut = {
   total: number;
   completed: number;
-  hot_dog: number;
-  not_hot_dog: number;
+  match: number;
+  no_match: number;
   pending_review: number;
   reviewed: number;
   overrides: number;

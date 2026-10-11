@@ -54,8 +54,8 @@ export const STORAGE_URL = "http://storage.test/seamflow-takehome";
 export const METRICS: MetricsOut = {
   total: 42,
   completed: 40,
-  hot_dog: 25,
-  not_hot_dog: 15,
+  match: 25,
+  no_match: 15,
   pending_review: 3,
   reviewed: 8,
   overrides: 2,

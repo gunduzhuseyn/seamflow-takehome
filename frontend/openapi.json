@@ -399,6 +399,237 @@
         }
       }
     },
+    "/classifications/metrics": {
+      "get": {
+        "tags": [
+          "classifications"
+        ],
+        "summary": "Metrics",
+        "operationId": "classifications-metrics",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-org-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Org-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/classifications/export.csv": {
+      "get": {
+        "tags": [
+          "classifications"
+        ],
+        "summary": "Export Csv",
+        "description": "Every row that matches the list filters, newest first.",
+        "operationId": "classifications-export_csv",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ClassificationStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "review_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ReviewStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Review Status"
+            }
+          },
+          {
+            "name": "verdict",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Verdict"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Verdict"
+            }
+          },
+          {
+            "name": "x-org-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Org-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/csv": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/classifications/{classification_id}/review": {
+      "post": {
+        "tags": [
+          "classifications"
+        ],
+        "summary": "Review",
+        "description": "Confirm or override the model verdict of a completed row.",
+        "operationId": "classifications-review",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "classification_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Classification Id"
+            }
+          },
+          {
+            "name": "x-org-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Org-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassificationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/classifications/{classification_id}": {
       "get": {
         "tags": [
@@ -1170,6 +1401,76 @@
         ],
         "title": "MembershipOut"
       },
+      "MetricsOut": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "completed": {
+            "type": "integer",
+            "title": "Completed"
+          },
+          "match": {
+            "type": "integer",
+            "title": "Match"
+          },
+          "no_match": {
+            "type": "integer",
+            "title": "No Match"
+          },
+          "pending_review": {
+            "type": "integer",
+            "title": "Pending Review"
+          },
+          "reviewed": {
+            "type": "integer",
+            "title": "Reviewed"
+          },
+          "overrides": {
+            "type": "integer",
+            "title": "Overrides"
+          },
+          "override_rate": {
+            "type": "number",
+            "title": "Override Rate"
+          },
+          "avg_latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Latency Ms"
+          },
+          "total_cost_usd": {
+            "type": "number",
+            "title": "Total Cost Usd"
+          },
+          "deduplicated": {
+            "type": "integer",
+            "title": "Deduplicated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "completed",
+          "match",
+          "no_match",
+          "pending_review",
+          "reviewed",
+          "overrides",
+          "override_rate",
+          "avg_latency_ms",
+          "total_cost_usd",
+          "deduplicated"
+        ],
+        "title": "MetricsOut"
+      },
       "OrgOut": {
         "properties": {
           "id": {
@@ -1208,6 +1509,18 @@
           "name"
         ],
         "title": "OrgRename"
+      },
+      "ReviewCreate": {
+        "properties": {
+          "final_verdict": {
+            "$ref": "#/components/schemas/Verdict"
+          }
+        },
+        "type": "object",
+        "required": [
+          "final_verdict"
+        ],
+        "title": "ReviewCreate"
       },
       "ReviewStatus": {
         "type": "string",

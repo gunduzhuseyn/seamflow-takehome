@@ -6,6 +6,7 @@ the classification id.
 
 import uuid
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
@@ -133,6 +134,22 @@ class Classification(OrgScoped):
     error_code: Mapped[str | None] = mapped_column(Text)
 
 
+@dataclass(frozen=True)
+class Metrics:
+    total: int
+    completed: int
+    match: int
+    no_match: int
+    pending_review: int
+    reviewed: int
+    # Reviewed rows whose final verdict differs from the model verdict.
+    overrides: int
+    # Over completed rows with a latency. None when there are none.
+    avg_latency_ms: float | None
+    total_cost_usd: Decimal
+    deduplicated: int
+
+
 class ClassificationRepository(Repository[Classification]):
     model = Classification
 
@@ -143,9 +160,9 @@ class ClassificationRepository(Repository[Classification]):
         status: ClassificationStatus | None = None,
         review_status: ReviewStatus | None = None,
         verdict: Verdict | None = None,
-        limit: int,
+        limit: int | None,
     ) -> tuple[Sequence[Classification], int]:
-        """The newest `limit` rows that match, and the count of every match."""
+        """The newest `limit` rows that match, all when None, and the match count."""
         conditions = [Classification.org_id == org_id]
         if status is not None:
             conditions.append(Classification.status == status)
@@ -179,4 +196,59 @@ class ClassificationRepository(Repository[Classification]):
             )
             .order_by(Classification.created_at, Classification.id)
             .limit(1)
+        )
+
+    async def metrics(self, org_id: uuid.UUID) -> Metrics:
+        """The dashboard numbers of one org, in one aggregate query."""
+        completed = Classification.status == ClassificationStatus.completed
+        row = (
+            await self.session.execute(
+                select(
+                    func.count().label("total"),
+                    func.count().filter(completed).label("completed"),
+                    func.count()
+                    .filter(Classification.verdict == Verdict.match)
+                    .label("match"),
+                    func.count()
+                    .filter(Classification.verdict == Verdict.no_match)
+                    .label("no_match"),
+                    func.count()
+                    .filter(Classification.review_status == ReviewStatus.pending)
+                    .label("pending_review"),
+                    func.count()
+                    .filter(Classification.review_status == ReviewStatus.reviewed)
+                    .label("reviewed"),
+                    func.count()
+                    .filter(
+                        Classification.final_verdict.is_not(None),
+                        Classification.final_verdict.is_distinct_from(
+                            Classification.verdict
+                        ),
+                    )
+                    .label("overrides"),
+                    func.avg(Classification.latency_ms)
+                    .filter(completed)
+                    .label("avg_latency_ms"),
+                    func.coalesce(func.sum(Classification.cost_usd), 0).label(
+                        "total_cost_usd"
+                    ),
+                    func.count()
+                    .filter(Classification.duplicate_of.is_not(None))
+                    .label("deduplicated"),
+                ).where(Classification.org_id == org_id)
+            )
+        ).one()
+        return Metrics(
+            total=row.total,
+            completed=row.completed,
+            match=row.match,
+            no_match=row.no_match,
+            pending_review=row.pending_review,
+            reviewed=row.reviewed,
+            overrides=row.overrides,
+            avg_latency_ms=(
+                None if row.avg_latency_ms is None else float(row.avg_latency_ms)
+            ),
+            total_cost_usd=Decimal(row.total_cost_usd),
+            deduplicated=row.deduplicated,
         )

@@ -1,12 +1,17 @@
-"""Uploads and classifications: presign, create and start the job, list, get."""
+"""Uploads and classifications: presign, create and start the job, list, get,
+review, metrics, CSV export."""
 
+import csv
+import io
 import re
 import uuid
-from datetime import datetime
+from collections.abc import Iterator
+from datetime import UTC, datetime
 from typing import Annotated
 
 from arq import ArqRedis
 from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, StringConstraints
 from redis.asyncio import Redis
 from sqlalchemy import select
@@ -39,6 +44,22 @@ UPLOAD_URL_EXPIRES_SECONDS = 600
 THUMBNAIL_URL_EXPIRES_SECONDS = 3600
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 200
+CSV_FILENAME = "classifications.csv"
+CSV_COLUMNS = (
+    "id",
+    "created_at",
+    "filename",
+    "submitted_by",
+    "question_label",
+    "verdict",
+    "final_verdict",
+    "confidence",
+    "status",
+    "review_status",
+    "latency_ms",
+    "cost_usd",
+    "duplicate_of",
+)
 # The question is untrusted data that reaches the model. Only a short name
 # of a thing passes: no punctuation, newlines, braces, or angle brackets.
 QUESTION_LABEL_PATTERN = re.compile(r"^[a-z0-9][a-z0-9 '\-]{1,59}$")
@@ -117,6 +138,27 @@ class ClassificationOut(BaseModel):
 class ClassificationList(BaseModel):
     items: list[ClassificationOut]
     total: int
+
+
+class ReviewCreate(BaseModel):
+    final_verdict: Verdict
+
+
+class MetricsOut(BaseModel):
+    total: int
+    completed: int
+    match: int
+    no_match: int
+    pending_review: int
+    reviewed: int
+    # Reviewed rows whose final verdict differs from the model verdict.
+    overrides: int
+    # overrides over reviewed. 0 when nothing is reviewed.
+    override_rate: float
+    # Over completed rows with a latency. Null when there are none.
+    avg_latency_ms: float | None
+    total_cost_usd: float
+    deduplicated: int
 
 
 def _upload_prefix(org_id: uuid.UUID) -> str:
@@ -264,6 +306,116 @@ async def list_classifications(
     return ClassificationList(
         items=await _to_out(session, storage, list(rows)), total=total
     )
+
+
+def _csv_lines(
+    rows: list[Classification], names: dict[uuid.UUID, str]
+) -> Iterator[str]:
+    """The header, then one line per row. Every value is loaded before the first."""
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(CSV_COLUMNS)
+    yield buffer.getvalue()
+    for row in rows:
+        buffer.seek(0)
+        buffer.truncate()
+        writer.writerow(
+            [
+                row.id,
+                row.created_at.isoformat(),
+                row.filename,
+                names.get(row.submitted_by, ""),
+                row.question_label,
+                row.verdict,
+                row.final_verdict,
+                row.confidence,
+                row.status,
+                row.review_status,
+                row.latency_ms,
+                row.cost_usd,
+                row.duplicate_of,
+            ]
+        )
+        yield buffer.getvalue()
+
+
+# The fixed paths come before `/classifications/{classification_id}`, or
+# FastAPI reads "metrics" as an id.
+@router.get("/classifications/metrics", name="metrics")
+async def get_metrics(session: SessionDep, context: OrgContext) -> MetricsOut:
+    metrics = await ClassificationRepository(session).metrics(context.org.id)
+    return MetricsOut(
+        total=metrics.total,
+        completed=metrics.completed,
+        match=metrics.match,
+        no_match=metrics.no_match,
+        pending_review=metrics.pending_review,
+        reviewed=metrics.reviewed,
+        overrides=metrics.overrides,
+        override_rate=(
+            metrics.overrides / metrics.reviewed if metrics.reviewed else 0.0
+        ),
+        avg_latency_ms=metrics.avg_latency_ms,
+        total_cost_usd=float(metrics.total_cost_usd),
+        deduplicated=metrics.deduplicated,
+    )
+
+
+@router.get(
+    "/classifications/export.csv",
+    name="export_csv",
+    response_class=StreamingResponse,
+    responses={200: {"content": {"text/csv": {}}}},
+)
+async def export_classifications_csv(
+    session: SessionDep,
+    context: OrgContext,
+    status: ClassificationStatus | None = None,
+    review_status: ReviewStatus | None = None,
+    verdict: Verdict | None = None,
+) -> StreamingResponse:
+    """Every row that matches the list filters, newest first."""
+    rows, _ = await ClassificationRepository(session).list_filtered(
+        context.org.id,
+        status=status,
+        review_status=review_status,
+        verdict=verdict,
+        limit=None,
+    )
+    names = await _names(session, list(rows))
+    return StreamingResponse(
+        _csv_lines(list(rows), names),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{CSV_FILENAME}"'},
+    )
+
+
+@router.post("/classifications/{classification_id}/review", name="review")
+async def review_classification(
+    body: ReviewCreate,
+    session: SessionDep,
+    context: OrgContext,
+    storage: StorageDep,
+    classification_id: uuid.UUID,
+) -> ClassificationOut:
+    """Confirm or override the model verdict of a completed row."""
+    row = await ClassificationRepository(session).get(context.org.id, classification_id)
+    if row is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail="Classification not found"
+        )
+    if row.status != ClassificationStatus.completed:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="Only a completed classification can be reviewed.",
+        )
+    row.final_verdict = body.final_verdict
+    row.reviewed_by = context.user.id
+    row.reviewed_at = datetime.now(UTC)
+    row.review_status = ReviewStatus.reviewed
+    await session.commit()
+    (out,) = await _to_out(session, storage, [row])
+    return out
 
 
 @router.get("/classifications/{classification_id}", name="get")

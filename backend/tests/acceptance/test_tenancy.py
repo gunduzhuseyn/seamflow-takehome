@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import app.main  # noqa: F401  # pyright: ignore[reportUnusedImport]  # loads every model
 from app.core.db import Base
 from tests.fakes import TokenFactory
-from tests.tenancy_registry import EXEMPT, REGISTRY, TenantRoutes
+from tests.tenancy_registry import EXEMPT, REGISTRY, ItemAction, Report, TenantRoutes
 
 ORG_TABLES = sorted(t.name for t in Base.metadata.tables.values() if "org_id" in t.c)
 # A registry entry without a table also runs, so it fails instead of hiding.
@@ -25,6 +25,8 @@ def _with(method: str) -> list[str]:
 
 
 FOREIGN_CASES = [(t, m) for m in ("get", "patch", "delete") for t in _with(m)]
+ACTION_CASES = [(t, a) for t in CHECKED if t in REGISTRY for a in REGISTRY[t].actions]
+REPORT_CASES = [(t, r) for t in CHECKED if t in REGISTRY for r in REGISTRY[t].reports]
 
 
 @dataclass
@@ -160,6 +162,49 @@ async def test_foreign_row_is_404_and_unchanged(
     assert response.status_code == 404
     db_session.expire_all()
     assert await _snapshot(db_session, table, target) == before
+
+
+@pytest.mark.parametrize(
+    ("table", "action"), ACTION_CASES, ids=[f"{t}-{a.suffix}" for t, a in ACTION_CASES]
+)
+async def test_foreign_row_action_is_404_and_unchanged(
+    table: str,
+    action: ItemAction,
+    client: AsyncClient,
+    db_session: AsyncSession,
+    make_token: TokenFactory,
+) -> None:
+    routes = _routes(table)
+    a, b = await _two_tenants(db_session, make_token, routes)
+    target = b.rows[0]
+    before = await _snapshot(db_session, table, target)
+
+    response = await client.post(
+        f"{routes.item(target)}/{action.suffix}", headers=a.headers, json=action.body
+    )
+
+    assert response.status_code == 404
+    db_session.expire_all()
+    assert await _snapshot(db_session, table, target) == before
+
+
+@pytest.mark.parametrize(
+    ("table", "report"), REPORT_CASES, ids=[f"{t}-{r.path}" for t, r in REPORT_CASES]
+)
+async def test_report_covers_only_own_rows(
+    table: str,
+    report: Report,
+    client: AsyncClient,
+    db_session: AsyncSession,
+    make_token: TokenFactory,
+) -> None:
+    routes = _routes(table)
+    a, _ = await _two_tenants(db_session, make_token, routes)
+
+    response = await client.get(report.path, headers=a.headers)
+
+    assert response.status_code == 200
+    assert report.count(response) == len(a.rows)
 
 
 @pytest.mark.parametrize("table", _with("create"))
