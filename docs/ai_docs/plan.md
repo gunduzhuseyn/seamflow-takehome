@@ -6,8 +6,8 @@ Design: `docs/ai_docs/requirements.md`. Template: `../template` (T). Project: th
 
 ## Approach
 
-The repo is built from scratch, module by module, in the order of the template's pull requests.
-Each unit copies only the files it names, renames, and runs its check. No unit copies the template whole.
+Revised 16:35: the template is imported whole in one unit, renamed, and stripped of the notes demo
+entity and the SSE helper. Everything else (auth, tenancy, LLM slice, worker, deploy files) stays and is adapted in later units.
 
 Sessions:
 
@@ -25,18 +25,17 @@ Frontend units get a subagent review only when the check output is doubtful.
 | # | Unit | Session | Branch | Window | Depends on |
 | --- | --- | --- | --- | --- | --- |
 | U1 | Structure and docs | backend | main | 16:30 to 16:40 | |
-| U2 | Backend foundation: skeleton, auth, tenancy, seed, compose, Makefile, Dockerfile | backend | feat/backend-foundation | 16:40 to 17:10 | U1 |
-| F1 | Frontend foundation: Vite shell, Clerk, generated client, wrangler | frontend | feat/frontend-foundation | 16:40 to 17:10 | U1 |
+| U2 | Import template: copy, rename, strip notes and SSE, generalize jobs and llm_calls | backend | chore/import-template | 16:35 to 17:00 | U1 |
 | I1 | R2 bucket, token, CORS, lifecycle | infra | none | 16:35 to 16:55 | |
-| U3 | Deploy: ci.yml, .railway, Railway project live | infra | ci/deploy | 17:10 to 17:40 | U2, F1 |
-| U4 | Pipeline foundation: storage client, vision LLM slice, images, worker | backend | feat/pipeline | 17:10 to 17:50 | U2 |
-| F2 | App shell and Classify page with upload flow, MSW mocks | frontend | feat/classify-ui | 17:10 to 17:55 | F1 |
-| U5 | Classifications API and job: uploads, create, list, get | backend | feat/classifications | 17:50 to 18:25 | U4 |
-| F3 | Generated client wiring, Review queue, History, Dashboard | frontend | feat/review-history-dashboard | 17:55 to 18:35 | F2, U5 |
-| U6 | Review, metrics, CSV endpoints | backend-2 | feat/review-metrics | 18:10 to 18:35 | U5 |
+| U3 | Deploy: Railway project live, Workers live through CI | infra | none (config only) | 17:00 to 17:30 | U2 |
+| U4 | Pipeline foundation: storage client, vision in the LLM slice, images | backend | feat/pipeline | 17:00 to 17:40 | U2 |
+| F2 | App shell and Classify page with upload flow, MSW mocks | frontend | feat/classify-ui | 17:00 to 17:50 | U2 |
+| U5 | Classifications API and job: uploads, create, list, get | backend | feat/classifications | 17:40 to 18:15 | U4 |
+| F3 | Generated client wiring, Review queue, History, Dashboard | frontend | feat/review-history-dashboard | 17:50 to 18:35 | F2, U5 |
+| U6 | Review, metrics, CSV endpoints | backend-2 | feat/review-metrics | 18:05 to 18:35 | U5 |
 | U7 | Seed images, README, live demo pass, email | backend + conductor | chore/polish | 18:35 to 18:50 | all |
 
-Merge order: U1, U2, F1, U3, U4, F2, U5, F3, U6, U7.
+Merge order: U1, U2, U4, F2, U5, F3, U6, U7. U3 is configuration and has no branch.
 
 Cut order if behind at 18:00: CSV export, then dashboard to four tiles, then batch drop.
 Fallback at 17:30 if the presigned upload does not work locally in the browser: API accepts multipart and writes to storage itself.
@@ -112,45 +111,40 @@ User: commit `chore: add project structure and docs`, add the remote `git@github
 > 6. Record in the notes file: STORAGE_ENDPOINT_URL, STORAGE_ACCESS_KEY_ID, STORAGE_SECRET_ACCESS_KEY, STORAGE_BUCKET=seamflow-takehome, STORAGE_REGION=auto.
 > Done when: `npx wrangler r2 bucket list` shows the bucket and `npx wrangler r2 bucket cors list seamflow-takehome` shows the rules. Paste both.
 
-### U2 Backend foundation (backend session, branch feat/backend-foundation)
+### U2 Import template (backend session, branch chore/import-template)
 
-> Build the backend foundation by copying these from T, adapting names, nothing else.
-> Before anything: `cd T && docker compose down -v` so ports are free.
-> Copy: T/backend/{pyproject.toml,uv.lock,.python-version,Dockerfile,.dockerignore,alembic.ini,Makefile}, T/backend/app/{__init__,main,seed}.py, T/backend/app/core/*, T/backend/app/auth/*, T/backend/app/health/*, T/backend/migrations/{env.py,script.py.mako}, T/backend/migrations/versions/*initial*.py and *auth_tenancy*.py, T/backend/tests/{conftest,fakes,tenancy_registry,test_settings,test_logging,test_network_guard,test_migrations}.py, T/backend/tests/acceptance/{test_auth,test_health,test_access_log,test_seed,test_tenancy}.py, T/Makefile, T/compose.yaml, T/compose/, T/backend/.env (local secrets, gitignored).
-> Adapt: main.py keeps only health and auth routers and the lifespan parts they need (keep the Redis pool, drop the arq pool for now). seed.py creates the org and seed user only; remove DEMO_NOTES. pyproject: drop nothing yet. Settings: remove LLM and worker settings that no copied module reads; keep the production placeholder validator. compose.yaml: keep postgres, redis, rustfs. Root Makefile: keep the frontend targets as they are; the frontend lands in F1.
-> Tests must not reference notes, llm, or jobs. Remove those registrations from tenancy_registry.
-> Done when: `cd P && docker compose up -d --wait && make -C backend check` passes. Paste the full output including the pytest summary line.
+> Import the template whole, rename it, and strip what this product does not need.
+> Before anything: `cd T && docker compose down -v` so ports are free. Then `cd P && git checkout -b chore/import-template`.
+> 1. Copy: `rsync -a --exclude .git --exclude node_modules --exclude .venv --exclude '.pytest_cache' --exclude '__pycache__' --exclude dist --exclude 'docs/ai_docs/requirements.md' --exclude README.md --exclude AGENTS.md T/ P/`. Local `.env` files come along; they are gitignored and reused on purpose. Keep P's README.md, AGENTS.md, and docs/ai_docs/requirements.md. Rename P/docs/decisions/0001-upload-and-processing.md to 0008-upload-and-processing.md and add it to docs/decisions/README.md.
+> 2. Rename: replace `takehome-template` with `seamflow-takehome` in README.md (template copy at T/README.md, merge its Try it and Local development sections into P/README.md under our title and AI use section), frontend/wrangler.jsonc, .railway/railway.ts (REPO `gunduzhuseyn/seamflow-takehome`, NAME `seamflow-takehome`), docs/guides/deploy.md. `grep -rn takehome-template P --exclude-dir=node_modules --exclude-dir=.git` must return nothing. Keep the worker service in railway.ts.
+> 3. Strip notes: backend/app/notes/, migrations/versions/*add_notes*.py, tests that import notes (notes_support, llm_support if notes-only, acceptance/test_notes*, test_llm_summarize, test_job_* and acceptance/test_jobs if they use the note analysis job: keep the job tests by giving them a trivial test job instead), DEMO_NOTES in seed.py, the notes router and job registration in main.py and worker.py, frontend/src/features/notes, src/app/routes/notes.tsx, src/lib/sse.ts and its test, src/testing/sse-fixtures.ts, notes handlers in src/testing/handlers.ts, notes links in routes/home.tsx. Remove the SSE helpers in backend/app/llm/calls.py only if nothing else uses them; keep `run_call`'s validation logic available for the next unit.
+> 4. Generalize: in jobs and llm_calls, rename `note_id` to `subject_id` (uuid, not null, no foreign key) in the models and edit the two migrations in place (fresh repo, no deployed database). Keep the unique active index on (kind, subject_id). Fix the repositories, runner, and tests that reference note_id. Keep tenancy_registry entries for jobs and llm_calls.
+> 5. home.tsx becomes a placeholder "Classify" page with the product name and the signed-in user's name. index.html title "SeeFood Enterprise".
+> 6. `make generate` to regenerate the client without notes operations.
+> 7. Update P/docs/ai_docs/README.md and docs/guides/README.md to the new names. Do not edit requirements.md or plan.md.
+> Done when: `cd P && make dev` is not required; run `docker compose up -d --wait && make check`. It must pass end to end (backend check, frontend check, railway tsc, drift). Paste the full output including the pytest summary line, the vitest summary line, and `cd backend && uv run alembic heads` showing one head.
 
-### F1 Frontend foundation (frontend session, worktree ../seamflow-takehome-fe, branch feat/frontend-foundation)
+### U3 Deploy (infra session, no branch, after U2 merged)
 
-> Create the worktree: `cd P && git worktree add ../seamflow-takehome-fe -b feat/frontend-foundation`. Work there.
-> Copy from T/frontend: package.json, package-lock.json, vite.config.ts, openapi-ts.config.ts, wrangler.jsonc (name `seamflow-takehome`), eslint and prettier config, tsconfig*.json, components.json, index.html, postcss or tailwind config, src/{main.tsx,index.css}, src/app/{provider.tsx,router.tsx,routes/protected-layout.tsx,routes/home.tsx}, src/lib/{api-config.ts,utils.ts}, src/lib/api/** (generated client, as is for now), src/components/ui/*, src/components/query-result.tsx, src/testing/{setup.ts,server.ts,handlers.ts,render.tsx}, src/features/me/*, .env (local, gitignored).
-> Do not copy: src/lib/sse*, src/testing/sse-fixtures.ts, src/features/notes, src/app/routes/notes.tsx.
-> Adapt: index.html title "SeeFood Enterprise". home.tsx becomes a placeholder "Classify" page with the product name and the signed-in user's name. router.tsx has only the protected layout and this page. handlers.ts keeps only health and me handlers. Remove notes operations from the generated client by regenerating: once `make -C backend check` passes on main, run `make generate` from P (it exports the backend OpenAPI document and regenerates src/lib/api). If main does not have the backend yet, finish everything else first and ask me.
-> Done when: `cd ../seamflow-takehome-fe/frontend && npm ci && npm run check` passes. Paste the full output.
-
-### U3 Deploy (infra session, branch ci/deploy, after U2 and F1 are on main)
-
-> Follow T/docs/guides/deploy.md steps 2 to 6 for project `seamflow-takehome`. Copy T/.github/workflows/ci.yml and T/.railway/* into P. In .railway/railway.ts set REPO to `gunduzhuseyn/seamflow-takehome` and NAME to `seamflow-takehome`. Keep the worker service. Add STORAGE_ENDPOINT_URL, STORAGE_BUCKET, STORAGE_REGION as plain variables on both api and worker in railway.ts; the two secrets are set by CLI in step 4. Copy T/docs/guides/deploy.md into P/docs/guides/ with names changed.
-> Then: `railway init --name seamflow-takehome`, `(cd .railway && npm ci) && railway config plan && railway config apply`. Set secrets on both api and worker with `printf '%s' '<v>' | railway variable set <NAME> --stdin --service <svc> --skip-deploys` for CLERK_SECRET_KEY, ANTHROPIC_API_KEY (copy from the takehome-template Railway project with `railway variable list`), SEED_USER_EMAIL and SEED_USER_PASSWORD (ask me), STORAGE_ACCESS_KEY_ID and STORAGE_SECRET_ACCESS_KEY (from /private/tmp/seamflow-infra-notes.md). Then `railway redeploy --service api --from-source --yes` and the same for worker.
-> GitHub variables are already set; verify with `gh variable list -R gunduzhuseyn/seamflow-takehome`.
-> Done when: `curl -s https://seamflow-takehome-api.up.railway.app/health` returns the health JSON. Paste it and `railway status`. Then tell me; I merge ci/deploy and CI deploys the frontend.
+> Follow P/docs/guides/deploy.md steps 2 to 6 for project `seamflow-takehome`. All deploy files are already in the repo on main.
+> `cd P && railway init --name seamflow-takehome`, `(cd .railway && npm ci) && railway config plan && railway config apply`. Set secrets on both api and worker with `printf '%s' '<v>' | railway variable set <NAME> --stdin --service <svc> --skip-deploys` for CLERK_SECRET_KEY, ANTHROPIC_API_KEY (copy from the takehome-template Railway project with `railway variable list` after linking it in a temp dir, or ask me), SEED_USER_EMAIL and SEED_USER_PASSWORD (ask me). Storage variables come in a later unit; do not set them now.
+> Then `railway redeploy --service api --from-source --yes` and the same for worker. GitHub variables are already set; verify with `gh variable list -R gunduzhuseyn/seamflow-takehome`.
+> Done when: `curl -s https://seamflow-takehome-api.up.railway.app/health` returns the health JSON. Paste it and `railway status`. CI on main deploys the frontend; paste the Workers URL from the Actions log.
 
 ### U4 Pipeline foundation (backend session, branch feat/pipeline, after U2 merged)
 
-> Build the storage, vision, image, and worker modules. Dependencies to add with uv: boto3, pillow, and their type stubs if pyright needs them (boto3-stubs[s3], types-Pillow is not needed on recent Pillow). arq is already in pyproject.
+> Build the storage, vision, and image modules on top of the imported LLM slice and worker. Dependencies to add with uv: boto3, pillow, and boto3-stubs[s3] if pyright needs it.
 > 1. app/storage/: `client.py` with a `Storage` protocol: `presign_put(key, content_type, expires_s) -> str`, `presign_get(key, expires_s) -> str`, `head(key) -> int | None` (size), `get_bytes(key) -> bytes`, `put_bytes(key, data, content_type)`, `ensure_bucket()` (create bucket and set a CORS rule allowing PUT and GET from CORS_ORIGINS; used in development only). `S3Storage` on boto3 run through `asyncio.to_thread`. `FakeStorage` in tests/fakes.py with an in-memory dict. Settings: STORAGE_ENDPOINT_URL, STORAGE_PUBLIC_ENDPOINT_URL (defaults to the endpoint; used only for presigned URLs), STORAGE_ACCESS_KEY_ID, STORAGE_SECRET_ACCESS_KEY, STORAGE_BUCKET, STORAGE_REGION. Add placeholders to the production validator. Local values for RustFS: endpoint http://localhost:9000, key and secret rustfsadmin. Call `ensure_bucket()` from a Makefile target `storage-init` that `make dev` runs after compose is up.
 > 2. app/images.py: `inspect(data) -> (mime, width, height)` using Pillow and raising `InvalidImage` when not jpeg/png/webp/gif. `model_input(data) -> bytes` JPEG with the longest side 1024. `thumbnail(data) -> bytes` WebP with the longest side 320. Tests generate images with Pillow.
-> 3. LLM slice: copy T/backend/app/llm/{provider,prices,limits,fake_provider,anthropic_provider}.py and T/backend/tests/test_anthropic_provider.py, T/backend/tests/fixtures/llm/. Add `images: list[ImageInput]` (media_type, base64) to LLMRequest and build the content block list in anthropic_provider.py. Copy the llm_calls model and migration from T/backend/app/llm/models.py and T/backend/migrations/versions/*add_llm_calls*.py without note_id. Add `app/llm/complete.py: complete_with_tool(provider, request, output_model) -> (parsed, usage)` that consumes the stream, keeps the ToolInput and Usage, validates with the model, and retries once on validation failure. Record an LLMCall row per attempt.
+> 3. LLM slice (already imported): add `images: list[ImageInput]` (media_type, base64) to LLMRequest and build the content block list in anthropic_provider.py. Add `app/llm/complete.py: complete_with_tool(provider, request, output_model) -> (parsed, usage)` that consumes the stream, keeps the ToolInput and Usage, validates with the model, and retries once on validation failure. Record an LLMCall row per attempt.
 > 4. app/vision/: `prompts/classify.md` (system prompt: you are a food compliance classifier, answer with the tool, verdict is binary, confidence reflects certainty, observations is one sentence under 300 chars on what is visible), `schema.py` with `VisionResult(verdict: Literal["hot_dog","not_hot_dog"], confidence: float 0..1, observations: str max 300)`, `classify.py: classify_image(session, provider, user_id, org_id, jpeg_bytes) -> (VisionResult, llm_call_id, cost_usd)`. Fixture tests/fixtures/llm/hotdog.json for the fake provider and one invalid fixture to test the retry.
-> 5. Worker: copy T/backend/app/worker.py, T/backend/app/jobs/*, the add_jobs migration, T/backend/tests/{jobs_support.py,test_job_*.py}, T/backend/tests/acceptance/test_jobs.py. Register no classification job yet. Restore the arq pool in main.py lifespan.
-> 6. Replace `check_input_limit` in limits.py with a byte cap on the model input (2 MB). Keep `enforce_rate_limit`.
-> 7. One integration test marked to run only when STORAGE_ENDPOINT_URL is reachable: presign PUT, upload with httpx, head, get_bytes, presign GET, download with httpx. It runs in `make check` locally because compose is up.
+> 5. Replace `check_input_limit` in limits.py with a byte cap on the model input (2 MB). Keep `enforce_rate_limit`.
+> 6. One integration test marked to run only when STORAGE_ENDPOINT_URL is reachable: presign PUT, upload with httpx, head, get_bytes, presign GET, download with httpx. It runs in `make check` locally because compose is up.
 > Done when: `make -C backend check` passes. Paste the full output including the pytest summary line and `alembic heads` showing one head.
 
-### F2 App shell and Classify page (frontend session, branch feat/classify-ui, after F1 merged)
+### F2 App shell and Classify page (frontend session, worktree ../seamflow-takehome-fe, branch feat/classify-ui, after U2 merged)
 
-> Build the enterprise shell and the Classify page against the API contract in plan.md, with MSW handlers. The generated client does not have these operations yet, so write `src/features/classifications/api.ts` with typed fetch wrappers using the same base URL and auth as src/lib/api-config.ts. F3 replaces them with the generated client.
+> Create the worktree: `cd P && git worktree add ../seamflow-takehome-fe -b feat/classify-ui`. Work in its frontend folder; `npm ci` first. Build the enterprise shell and the Classify page against the API contract in plan.md, with MSW handlers. The generated client does not have these operations yet, so write `src/features/classifications/api.ts` with typed fetch wrappers using the same base URL and auth as src/lib/api-config.ts. F3 replaces them with the generated client.
 > Shell: left sidebar with the product name, nav items Classify, Review, History, Dashboard (the last three route to placeholder pages), a top bar with the organization name and the Clerk UserButton. Dense, calm, grey-blue palette, shadcn components, no gradients, no emoji. Page headers with a title and one line of description.
 > Classify page: a drop zone (click or drop, multiple files, accept jpeg/png/webp/gif, 10 MB cap checked client side with an inline error). For each accepted file: POST /uploads, PUT the file to upload_url with the Content-Type header, POST /classifications, then the row appears in the results. Results: a responsive card grid of ClassificationOut, newest first, from GET /classifications?limit=50 with refetchInterval 2000 while any item is queued or processing, otherwise off. Card: thumbnail (object URL of the local file until thumbnail_url arrives), filename, status chip, verdict in large text "Hot Dog" or "Not Hot Dog" with a green or slate badge, confidence bar with the percent, observations, latency and cost line, "Pending review" amber badge when review_status is pending, "Duplicate, $0.00" badge when duplicate_of is set, "Analysis failed" with the error_code when failed. Empty state with one sentence and the drop zone.
 > Tests: drop two files, the three requests happen per file, cards show queued then completed after the mock flips state on the second poll.
@@ -159,7 +153,7 @@ User: commit `chore: add project structure and docs`, add the remote `git@github
 ### U5 Classifications API and job (backend session, branch feat/classifications, after U4 merged)
 
 > Implement the contract's uploads and classifications endpoints and the worker job.
-> Model app/classifications/models.py per requirements.md with the three indexes, an Alembic migration, a `ClassificationRepository(Repository)` with `list_filtered`, `find_duplicate(org_id, sha256)`. Register in tenancy_registry.
+> Model app/classifications/models.py per requirements.md with the three indexes (jobs and llm_calls link back through their subject_id = classification id), an Alembic migration, a `ClassificationRepository(Repository)` with `list_filtered`, `find_duplicate(org_id, sha256)`. Register in tenancy_registry.
 > Router: POST /uploads validates content_type and size_bytes, builds key `incoming/{org_id}/{uuid4}`, returns the presigned PUT (10 minutes). POST /classifications checks the key prefix matches the caller's org, runs enforce_rate_limit, creates the row queued, starts the job through jobs.queue.start_job, returns 202. GET list applies filters and adds `thumbnail_url` (presigned GET, 1 hour) and `submitted_by_name`. GET by id.
 > Job `classify_image_job(ctx, classification_id)` in app/classifications/job.py through jobs.runner.run_job: load row; if verdict already set, return (idempotent). Set processing. `head` the key; over 10 MB sets failed with error_code too_large. `get_bytes`, `images.inspect`; InvalidImage sets failed with invalid_image. sha256; `find_duplicate` with a completed row copies verdict, confidence, observations, thumbnail_key, sets duplicate_of, cost 0, completed, and returns. Else `images.thumbnail` to `thumbs/{org_id}/{id}.webp`, `images.model_input`, `vision.classify_image`, write verdict, confidence, observations, latency_ms, cost_usd, llm_call_id, status completed, review_status pending when confidence < CLASSIFY_REVIEW_THRESHOLD (setting, default 0.85) else not_required. Provider errors raise so the jobs runner retries; after the last attempt set failed with provider_error.
 > Tests with FakeStorage and FakeProvider: upload validation, key prefix check, rate limit 429, create returns 202 queued, job completes a row with the fixture result, low confidence goes pending, duplicate skips the provider and costs 0, invalid image fails with the code, tenancy test through the registry.

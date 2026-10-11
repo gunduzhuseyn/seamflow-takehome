@@ -1,0 +1,12 @@
+[
+  {"type": "text", "text": "Reading the note"},
+  {"type": "text", "text": " and picking tags."},
+  {
+    "type": "tool_input",
+    "input": {
+      "summary": "The note lists the release steps: run the checks, deploy, run the smoke script.",
+      "tags": ["release", "checklist"]
+    }
+  },
+  {"type": "usage", "input_tokens": 120, "output_tokens": 40, "stop_reason": "tool_use"}
+]
