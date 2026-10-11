@@ -13,7 +13,7 @@ import { ClassifyPanel } from "./classify-panel";
 
 /** The panel as the route mounts it: the hook owns the label. */
 function Panel() {
-  const [label, setLabel] = useQuestionLabel();
+  const [label, setLabel] = useQuestionLabel("user_1");
   return (
     <>
       <p>Current check: is this a {label}?</p>

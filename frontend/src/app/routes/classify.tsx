@@ -1,9 +1,12 @@
+import { useAuth } from "@clerk/react";
+
 import { PageHeader } from "@/components/page-header";
 import { ClassifyPanel } from "@/features/classifications/components/classify-panel";
 import { useQuestionLabel } from "@/features/classifications/question-label";
 
 export function ClassifyRoute() {
-  const [questionLabel, setQuestionLabel] = useQuestionLabel();
+  const { userId } = useAuth();
+  const [questionLabel, setQuestionLabel] = useQuestionLabel(userId ?? null);
   return (
     <>
       <PageHeader

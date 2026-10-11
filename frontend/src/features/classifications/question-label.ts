@@ -2,7 +2,12 @@ import { useState } from "react";
 
 /** The question every new classification asks. The API default is the same. */
 export const DEFAULT_QUESTION_LABEL = "hot dog";
-const STORAGE_KEY = "seefood.question-label";
+const STORAGE_KEY_PREFIX = "seefood.question-label.";
+
+/** One key per signed-in user, so a shared browser keeps the questions apart. */
+function storageKey(userId: string): string {
+  return STORAGE_KEY_PREFIX + userId;
+}
 
 /** Mirrors the API check: 2 to 60 letters, digits, spaces, apostrophes, hyphens. */
 export const QUESTION_LABEL_PATTERN = /^[a-z0-9][a-z0-9 '-]{1,59}$/;
@@ -31,9 +36,12 @@ export function isValidQuestionLabel(label: string): boolean {
   );
 }
 
-function read(): string {
+function read(userId: string | null): string {
+  if (userId === null) {
+    return DEFAULT_QUESTION_LABEL;
+  }
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(storageKey(userId));
     if (stored !== null && isValidQuestionLabel(stored)) {
       return stored;
     }
@@ -43,13 +51,28 @@ function read(): string {
   return DEFAULT_QUESTION_LABEL;
 }
 
-/** The current question, kept in localStorage across reloads. */
-export function useQuestionLabel(): [string, (label: string) => void] {
-  const [label, setLabel] = useState(read);
+/**
+ * The current question of one user, kept in localStorage across reloads.
+ * A different user, or no user, starts from the default. The caller passes
+ * the Clerk user id so the hook stays free of Clerk.
+ */
+export function useQuestionLabel(
+  userId: string | null,
+): [string, (label: string) => void] {
+  const [state, setState] = useState(() => ({ userId, label: read(userId) }));
+  // The user changed under a mounted route: re-read before this render shows
+  // the previous user's question.
+  if (state.userId !== userId) {
+    setState({ userId, label: read(userId) });
+  }
+  const label = state.userId === userId ? state.label : read(userId);
   const update = (next: string) => {
-    setLabel(next);
+    setState({ userId, label: next });
+    if (userId === null) {
+      return;
+    }
     try {
-      localStorage.setItem(STORAGE_KEY, next);
+      localStorage.setItem(storageKey(userId), next);
     } catch {
       // Storage blocked. The value lives until the next reload.
     }
