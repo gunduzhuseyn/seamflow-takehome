@@ -150,6 +150,7 @@ export function HistoryTable() {
                 </TableHead>
                 <TableHead>Filename</TableHead>
                 <TableHead>Submitted by</TableHead>
+                <TableHead>Question</TableHead>
                 <TableHead>Verdict</TableHead>
                 <TableHead>Final verdict</TableHead>
                 <TableHead>Confidence</TableHead>
@@ -170,6 +171,7 @@ export function HistoryTable() {
                     {item.filename}
                   </TableCell>
                   <TableCell>{item.submitted_by_name}</TableCell>
+                  <TableCell>{item.question_label}</TableCell>
                   <TableCell>
                     {verdictLabel(item.verdict, item.verdict_labels)}
                   </TableCell>

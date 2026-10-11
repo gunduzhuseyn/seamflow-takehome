@@ -606,6 +606,35 @@ async def test_review_of_a_queued_row_is_409(
     assert row["review_status"] == "not_required"
 
 
+async def test_second_review_of_a_reviewed_row_is_409(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    fake_storage: FakeStorage,
+    worker_ctx: dict[str, Any],
+    tenant: Tenant,
+) -> None:
+    _, _, headers = tenant
+    created = await submit(client, headers, fake_storage, jpeg())
+    await run(worker_ctx, db_session, created["id"])
+    first = await client.post(
+        f"/classifications/{created['id']}/review",
+        headers=headers,
+        json={"final_verdict": "no_match"},
+    )
+    assert first.status_code == 200, first.text
+
+    response = await client.post(
+        f"/classifications/{created['id']}/review",
+        headers=headers,
+        json={"final_verdict": "match"},
+    )
+
+    assert response.status_code == 409
+    (row,) = await stored(db_session, "classifications", "id", uuid.UUID(created["id"]))
+    assert row["final_verdict"] == "no_match"
+    assert row["review_status"] == "reviewed"
+
+
 async def test_review_of_another_orgs_row_is_404(
     client: AsyncClient, db_session: AsyncSession, tenant: Tenant
 ) -> None:

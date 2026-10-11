@@ -409,6 +409,11 @@ async def review_classification(
             status.HTTP_409_CONFLICT,
             detail="Only a completed classification can be reviewed.",
         )
+    if row.review_status == ReviewStatus.reviewed:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="This classification already has a final verdict.",
+        )
     row.final_verdict = body.final_verdict
     row.reviewed_by = context.user.id
     row.reviewed_at = datetime.now(UTC)
