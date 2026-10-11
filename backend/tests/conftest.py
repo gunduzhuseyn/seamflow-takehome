@@ -33,14 +33,12 @@ from app.core.config import Settings
 from app.core.db import create_engine, get_session, get_stream_session
 from app.llm.fake_provider import FakeProvider
 from app.main import create_app
-from tests.fakes import FakeClerk, TokenFactory
+from app.storage.client import get_storage
+from tests.fakes import FakeClerk, FakeStorage, TokenFactory
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 ENV_FILE = BACKEND_DIR.parent / ".env"
 
-# Compose service name of the object store. Replace with a storage setting
-# when one exists.
-STORAGE_HOST = "rustfs"
 # Only `pytest -m live` reaches it.
 LLM_HOST = "api.anthropic.com"
 
@@ -98,9 +96,8 @@ def settings(signing_key: rsa.RSAPrivateKey) -> Settings:
         SEED_USER_PASSWORD="test-seed-password",
         ANTHROPIC_API_KEY="sk-ant-test",
         LLM_PROVIDER="fake",
-        # test_llm.py repeats these two values.
+        # Fixed, so a test can count on it.
         LLM_RATE_LIMIT_PER_MINUTE=3,
-        LLM_INPUT_TOKEN_LIMIT=2000,
         # One queue per test run, so parallel runs on one Redis do not collide.
         WORKER_QUEUE_NAME=f"arq:queue:test:{uuid.uuid4().hex[:8]}",
     )
@@ -135,6 +132,11 @@ def make_token(signing_key: rsa.RSAPrivateKey) -> TokenFactory:
 @pytest.fixture
 def fake_clerk() -> FakeClerk:
     return FakeClerk()
+
+
+@pytest.fixture
+def fake_storage() -> FakeStorage:
+    return FakeStorage()
 
 
 @pytest.fixture(scope="session")
@@ -205,7 +207,12 @@ async def db_session(db_connection: AsyncConnection) -> AsyncIterator[AsyncSessi
 
 
 @pytest.fixture
-def app(settings: Settings, db_session: AsyncSession, fake_clerk: FakeClerk) -> FastAPI:
+def app(
+    settings: Settings,
+    db_session: AsyncSession,
+    fake_clerk: FakeClerk,
+    fake_storage: FakeStorage,
+) -> FastAPI:
     app = create_app(settings)
 
     async def override_get_session() -> AsyncIterator[AsyncSession]:
@@ -214,6 +221,7 @@ def app(settings: Settings, db_session: AsyncSession, fake_clerk: FakeClerk) -> 
     app.dependency_overrides[get_session] = override_get_session
     app.dependency_overrides[get_stream_session] = override_get_session
     app.dependency_overrides[get_clerk] = lambda: fake_clerk
+    app.dependency_overrides[get_storage] = lambda: fake_storage
     return app
 
 
@@ -236,10 +244,15 @@ def fake_llm(app: FastAPI, client: AsyncClient) -> FakeProvider:
 @pytest.fixture(scope="session", autouse=True)
 def network_guard(settings: Settings, request: pytest.FixtureRequest) -> Iterator[None]:
     """Fail any test that opens a socket to a host outside the Compose services."""
-    hosts = {"localhost", "127.0.0.1", "::1", STORAGE_HOST}
+    hosts = {"localhost", "127.0.0.1", "::1"}
     if request.config.getoption("-m") == "live":
         hosts.add(LLM_HOST)
-    for url in (settings.DATABASE_URL, settings.REDIS_URL):
+    for url in (
+        settings.DATABASE_URL,
+        settings.REDIS_URL,
+        settings.STORAGE_ENDPOINT_URL,
+        settings.STORAGE_PUBLIC_ENDPOINT_URL,
+    ):
         hostname = urlparse(url).hostname
         if hostname:
             hosts.add(hostname)

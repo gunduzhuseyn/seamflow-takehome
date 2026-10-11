@@ -25,6 +25,9 @@ def test_settings_loads_from_complete_environment(
     monkeypatch.setenv("SEED_USER_EMAIL", "owner@app.example")
     monkeypatch.setenv("SEED_USER_PASSWORD", "a-real-password")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-real")
+    monkeypatch.setenv("STORAGE_ENDPOINT_URL", "https://acc.r2.cloudflarestorage.com")
+    monkeypatch.setenv("STORAGE_ACCESS_KEY_ID", "real-key-id")
+    monkeypatch.setenv("STORAGE_SECRET_ACCESS_KEY", "real-secret")
 
     settings = Settings(_env_file=None)  # pyright: ignore[reportCallIssue]
 
@@ -38,10 +41,14 @@ def test_settings_loads_from_complete_environment(
     assert settings.LLM_PROVIDER is LLMProviderName.anthropic
     assert settings.LLM_MODEL == "claude-sonnet-5-5"
     assert settings.LLM_MAX_OUTPUT_TOKENS > 0
-    assert settings.LLM_INPUT_TOKEN_LIMIT > 0
+    assert settings.LLM_MAX_IMAGE_BYTES > 0
     assert settings.LLM_RATE_LIMIT_PER_MINUTE > 0
     assert settings.LLM_TIMEOUT_SECONDS > 0
     assert settings.LLM_MAX_RETRIES >= 0
+    assert settings.STORAGE_ENDPOINT_URL == "https://acc.r2.cloudflarestorage.com"
+    assert settings.STORAGE_PUBLIC_ENDPOINT_URL == settings.STORAGE_ENDPOINT_URL
+    assert settings.STORAGE_BUCKET == "seamflow-takehome"
+    assert settings.STORAGE_REGION == "auto"
 
 
 def test_settings_fails_on_missing_variable(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -97,6 +104,9 @@ def _set_required(monkeypatch: pytest.MonkeyPatch) -> None:
         "SEED_USER_EMAIL",
         "SEED_USER_PASSWORD",
         "ANTHROPIC_API_KEY",
+        "STORAGE_ENDPOINT_URL",
+        "STORAGE_ACCESS_KEY_ID",
+        "STORAGE_SECRET_ACCESS_KEY",
     ):
         monkeypatch.setenv(name, "x")
 
@@ -110,6 +120,33 @@ def test_production_requires_the_anthropic_provider(
 
     with pytest.raises(ValidationError, match="LLM_PROVIDER"):
         Settings(_env_file=None)  # pyright: ignore[reportCallIssue]
+
+
+def test_production_rejects_placeholder_storage_secret(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set_required(monkeypatch)
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("CORS_ORIGINS", "https://app.example")
+    monkeypatch.setenv(
+        "STORAGE_SECRET_ACCESS_KEY", PLACEHOLDERS["STORAGE_SECRET_ACCESS_KEY"]
+    )
+
+    with pytest.raises(ValidationError, match="STORAGE_SECRET_ACCESS_KEY"):
+        Settings(_env_file=None)  # pyright: ignore[reportCallIssue]
+
+
+def test_public_storage_endpoint_is_its_own_setting(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set_required(monkeypatch)
+    monkeypatch.setenv("STORAGE_ENDPOINT_URL", "http://rustfs:9000")
+    monkeypatch.setenv("STORAGE_PUBLIC_ENDPOINT_URL", "http://localhost:9000")
+
+    settings = Settings(_env_file=None)  # pyright: ignore[reportCallIssue]
+
+    assert settings.STORAGE_ENDPOINT_URL == "http://rustfs:9000"
+    assert settings.STORAGE_PUBLIC_ENDPOINT_URL == "http://localhost:9000"
 
 
 def test_jwt_key_with_escaped_newlines_parses(monkeypatch: pytest.MonkeyPatch) -> None:

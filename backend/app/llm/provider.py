@@ -1,7 +1,7 @@
 """The provider interface. One structured call streams a sequence of events."""
 
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
 from fastapi import Request
@@ -10,6 +10,17 @@ from fastapi import Request
 ErrorCode = Literal[
     "invalid_output", "refusal", "max_tokens", "provider_error", "timeout"
 ]
+
+
+ImageMediaType = Literal["image/jpeg", "image/png", "image/gif", "image/webp"]
+
+
+@dataclass(frozen=True)
+class ImageInput:
+    """One image in the user turn, base64 without newlines."""
+
+    media_type: ImageMediaType
+    data_base64: str
 
 
 @dataclass(frozen=True)
@@ -22,6 +33,8 @@ class LLMRequest:
     tool_name: str
     tool_description: str
     tool_schema: dict[str, Any]
+    # Sent before the user text.
+    images: list[ImageInput] = field(default_factory=list[ImageInput])
 
 
 @dataclass(frozen=True)

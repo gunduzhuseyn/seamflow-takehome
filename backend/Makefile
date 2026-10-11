@@ -1,4 +1,4 @@
-.PHONY: dev migrate seed serve worker check env openapi
+.PHONY: dev migrate seed serve worker check env openapi storage-init
 
 ALEMBIC = uv run --env-file ../.env alembic
 # The root drift check overrides this with a temporary path.
@@ -16,6 +16,10 @@ seed: env
 
 serve:
 	uv run uvicorn app.main:app --reload --port 8000
+
+# Create the bucket and its CORS rule in the local object store. Development only.
+storage-init: env
+	uv run --env-file ../.env python -m app.storage
 
 # The arq worker. It reads the same .env as the API.
 worker:

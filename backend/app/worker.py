@@ -13,6 +13,8 @@ from arq.typing import WorkerCoroutine
 from app.core.config import Settings
 from app.core.db import create_engine, create_sessionmaker
 from app.core.logging import configure_logging
+from app.jobs.heartbeat import heartbeat
+from app.storage.client import S3Storage
 
 log = logging.getLogger("app.worker")
 
@@ -25,6 +27,7 @@ async def on_startup(ctx: dict[str, Any]) -> None:
     ctx["engine"] = engine
     ctx["sessionmaker"] = create_sessionmaker(engine)
     ctx["settings"] = settings
+    ctx["storage"] = S3Storage.from_settings(settings)
     log.info("worker started", extra={"queue": settings.WORKER_QUEUE_NAME})
 
 
@@ -34,8 +37,8 @@ async def on_shutdown(ctx: dict[str, Any]) -> None:
 
 
 class WorkerSettings:
-    # arq refuses to start with no functions. The first job kind registers here.
-    functions: list[WorkerCoroutine] = []
+    # arq refuses to start with no functions. Each job kind registers here.
+    functions: list[WorkerCoroutine] = [heartbeat]
     on_startup = on_startup
     on_shutdown = on_shutdown
     redis_settings = RedisSettings.from_dsn(settings.REDIS_URL)

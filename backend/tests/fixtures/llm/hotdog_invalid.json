@@ -1,0 +1,8 @@
+[
+  {"type": "text", "text": "Looking at the image."},
+  {
+    "type": "tool_input",
+    "input": {"verdict": "sausage", "confidence": 1.5, "observations": "A sausage."}
+  },
+  {"type": "usage", "input_tokens": 1600, "output_tokens": 40, "stop_reason": "tool_use"}
+]

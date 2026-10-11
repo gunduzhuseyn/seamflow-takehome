@@ -8,9 +8,28 @@ tool call has no ToolInput event; the caller treats that as invalid output.
 from collections.abc import AsyncIterator
 
 import anthropic
-from anthropic.types import ToolParam
+from anthropic.types import ContentBlockParam, ImageBlockParam, ToolParam
 
-from app.llm.provider import Error, LLMEvent, LLMRequest, TextDelta, ToolInput, Usage
+from app.llm.provider import (
+    Error,
+    ImageInput,
+    LLMEvent,
+    LLMRequest,
+    TextDelta,
+    ToolInput,
+    Usage,
+)
+
+
+def _image_block(image: ImageInput) -> ImageBlockParam:
+    return {
+        "type": "image",
+        "source": {
+            "type": "base64",
+            "media_type": image.media_type,
+            "data": image.data_base64,
+        },
+    }
 
 
 class AnthropicProvider:
@@ -35,12 +54,17 @@ class AnthropicProvider:
             "input_schema": request.tool_schema,
             "strict": True,
         }
+        # Images first, then the text, as the vision docs show.
+        content: list[ContentBlockParam] = [
+            _image_block(image) for image in request.images
+        ]
+        content.append({"type": "text", "text": request.user})
         try:
             async with self._client.messages.stream(
                 model=request.model,
                 max_tokens=request.max_output_tokens,
                 system=request.system,
-                messages=[{"role": "user", "content": request.user}],
+                messages=[{"role": "user", "content": content}],
                 tools=[tool],
                 tool_choice={"type": "auto"},
             ) as stream:
