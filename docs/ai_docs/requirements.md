@@ -136,5 +136,6 @@ Rules:
 ## Open questions
 
 - Confidence threshold value. Start at 0.85, tune after the first ten real images.
-- Seed: six real photos from `seed-images/` are uploaded and classified once. Idempotent by hash.
+- Seed images: cut at 18:20. The demo starts with a live batch drop.
+- Configurability shipped as a per-request question label (default hot dog), validated and placed in the prompt as data. Org settings page and rerun of past images were cut for time.
 - Cut order if behind at 18:00: CSV export, then dashboard trimmed to four tiles, then batch drop. Feature stop 18:35.
