@@ -217,6 +217,7 @@ export function HistoryTable() {
           variant="outline"
           className="ml-auto"
           disabled={exporting}
+          title="Downloads the rows that match the current filters"
           onClick={() => {
             void handleExport();
           }}
@@ -233,7 +234,7 @@ export function HistoryTable() {
         query={query}
         isEmpty={(data) => data.items.length === 0}
         emptyMessage={
-          filters.verdict || filters.review_status
+          Object.values(filters).some((value) => value !== undefined)
             ? "No classifications match these filters."
             : "Nothing classified yet. Drop an image on the Classify page to run the first check."
         }
@@ -249,9 +250,13 @@ export function HistoryTable() {
                   <TableHead>Filename</TableHead>
                   <TableHead>Submitted by</TableHead>
                   <TableHead>Question</TableHead>
-                  <TableHead>Verdict</TableHead>
-                  <TableHead>Final verdict</TableHead>
-                  <TableHead>Confidence</TableHead>
+                  <TableHead title="What the model answered">Verdict</TableHead>
+                  <TableHead title="Set by a reviewer. Blank until a review happens.">
+                    Final verdict
+                  </TableHead>
+                  <TableHead title="How sure the model was. Low values wait in Review.">
+                    Confidence
+                  </TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
                 </TableRow>
