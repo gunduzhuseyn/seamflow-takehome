@@ -90,6 +90,23 @@ export const zLlmCallOut = z.object({
 });
 
 /**
+ * MetricsOut
+ */
+export const zMetricsOut = z.object({
+    total: z.int(),
+    completed: z.int(),
+    match: z.int(),
+    no_match: z.int(),
+    pending_review: z.int(),
+    reviewed: z.int(),
+    overrides: z.int(),
+    override_rate: z.number(),
+    avg_latency_ms: z.number().nullable(),
+    total_cost_usd: z.number(),
+    deduplicated: z.int()
+});
+
+/**
  * OrgOut
  */
 export const zOrgOut = z.object({
@@ -185,6 +202,13 @@ export const zHttpValidationError = z.object({
  * Verdict
  */
 export const zVerdict = z.enum(['match', 'no_match']);
+
+/**
+ * ReviewCreate
+ */
+export const zReviewCreate = z.object({
+    final_verdict: zVerdict
+});
 
 /**
  * VerdictLabels
@@ -289,6 +313,40 @@ export const zClassificationsCreateHeaders = z.object({
  * Successful Response
  */
 export const zClassificationsCreateResponse = zClassificationOut;
+
+export const zClassificationsMetricsHeaders = z.object({
+    'x-org-id': z.uuid().nullish()
+});
+
+/**
+ * Successful Response
+ */
+export const zClassificationsMetricsResponse = zMetricsOut;
+
+export const zClassificationsExportCsvHeaders = z.object({
+    'x-org-id': z.uuid().nullish()
+});
+
+export const zClassificationsExportCsvQuery = z.object({
+    status: zClassificationStatus.nullish(),
+    review_status: zReviewStatus.nullish(),
+    verdict: zVerdict.nullish()
+});
+
+export const zClassificationsReviewBody = zReviewCreate;
+
+export const zClassificationsReviewHeaders = z.object({
+    'x-org-id': z.uuid().nullish()
+});
+
+export const zClassificationsReviewPath = z.object({
+    classification_id: z.uuid()
+});
+
+/**
+ * Successful Response
+ */
+export const zClassificationsReviewResponse = zClassificationOut;
 
 export const zClassificationsGetHeaders = z.object({
     'x-org-id': z.uuid().nullish()

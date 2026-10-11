@@ -19,7 +19,7 @@ describe("MetricsTiles", () => {
     const tiles = screen.getAllByRole("listitem");
     expect(tiles.map((tile) => tile.textContent)).toEqual([
       "Total classified42",
-      "Hot dog ratio63%",
+      "Match ratio63%",
       "Pending review3",
       "Override rate25%",
       "Average latency1,480 ms",

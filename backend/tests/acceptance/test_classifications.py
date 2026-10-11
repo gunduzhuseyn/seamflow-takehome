@@ -1,8 +1,12 @@
-"""Uploads and classifications: validation, create, the job inline, list."""
+"""Uploads and classifications: validation, create, the job inline, list,
+review, metrics, CSV export."""
 
 import asyncio
+import csv
 import hashlib
+import io
 import uuid
+from datetime import UTC, datetime
 from io import BytesIO
 from typing import Any
 
@@ -25,7 +29,7 @@ from app.worker import WorkerSettings
 from tests.fakes import FakeStorage
 from tests.jobs_support import job_ctx
 from tests.tenancy_registry import insert_classification
-from tests.tenant_support import Tenant, tenant
+from tests.tenant_support import Tenant, insert_org, tenant
 
 __all__ = ["job_ctx", "tenant"]
 
@@ -544,6 +548,260 @@ async def test_list_filters_newest_first_with_thumbnails(
     for bad in ("limit=0", "limit=201", "status=done"):
         response = await client.get(f"/classifications?{bad}", headers=headers)
         assert response.status_code == 422, bad
+
+
+async def test_review_sets_the_final_verdict_on_a_completed_row(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    fake_storage: FakeStorage,
+    worker_ctx: dict[str, Any],
+    tenant: Tenant,
+) -> None:
+    _, user, headers = tenant
+    created = await submit(client, headers, fake_storage, jpeg())
+    await run(worker_ctx, db_session, created["id"])
+
+    response = await client.post(
+        f"/classifications/{created['id']}/review",
+        headers=headers,
+        json={"final_verdict": "no_match"},
+    )
+
+    assert response.status_code == 200, response.text
+    out = response.json()
+    assert out["id"] == created["id"]
+    assert (out["verdict"], out["final_verdict"]) == ("match", "no_match")
+    assert out["review_status"] == "reviewed"
+    assert out["reviewed_at"] is not None
+    (row,) = await stored(db_session, "classifications", "id", uuid.UUID(out["id"]))
+    assert row["reviewed_by"] == user
+    assert row["reviewed_at"] is not None
+    assert (await fetch(client, headers, created["id"]))["final_verdict"] == "no_match"
+    bad = await client.post(
+        f"/classifications/{created['id']}/review",
+        headers=headers,
+        json={"final_verdict": "hot_dog"},
+    )
+    assert bad.status_code == 422
+
+
+async def test_review_of_a_queued_row_is_409(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    fake_storage: FakeStorage,
+    tenant: Tenant,
+) -> None:
+    _, _, headers = tenant
+    created = await submit(client, headers, fake_storage, jpeg())
+
+    response = await client.post(
+        f"/classifications/{created['id']}/review",
+        headers=headers,
+        json={"final_verdict": "match"},
+    )
+
+    assert response.status_code == 409
+    (row,) = await stored(db_session, "classifications", "id", uuid.UUID(created["id"]))
+    assert row["final_verdict"] is None and row["reviewed_by"] is None
+    assert row["review_status"] == "not_required"
+
+
+async def test_review_of_another_orgs_row_is_404(
+    client: AsyncClient, db_session: AsyncSession, tenant: Tenant
+) -> None:
+    _, user, headers = tenant
+    other_org = await insert_org(db_session, "other")
+    row_id = await insert_classification(db_session, other_org, user)
+    await db_session.execute(
+        text("UPDATE classifications SET status = 'completed' WHERE id = :id"),
+        {"id": row_id},
+    )
+    await db_session.commit()
+
+    response = await client.post(
+        f"/classifications/{row_id}/review",
+        headers=headers,
+        json={"final_verdict": "match"},
+    )
+
+    assert response.status_code == 404
+    (row,) = await stored(db_session, "classifications", "id", row_id)
+    assert row["final_verdict"] is None and row["review_status"] == "not_required"
+
+
+async def insert_row(
+    session: AsyncSession, org: uuid.UUID, user: uuid.UUID, **columns: Any
+) -> uuid.UUID:
+    """A queued row, then the given columns set on it."""
+    row_id = await insert_classification(session, org, user)
+    if columns:
+        sets = ", ".join(f"{name} = :{name}" for name in columns)
+        await session.execute(
+            text(f"UPDATE classifications SET {sets} WHERE id = :id"),  # noqa: S608
+            {"id": row_id, **columns},
+        )
+    return row_id
+
+
+async def seed_five_rows(
+    session: AsyncSession, org: uuid.UUID, user: uuid.UUID
+) -> list[uuid.UUID]:
+    """A sure match, a pending no_match, an override, a confirmed copy, and a
+    queued row. Completed latencies 1000, 2000, 3000 and none; cost 0.004 each
+    but the copy."""
+    sure = await insert_row(
+        session,
+        org,
+        user,
+        status="completed",
+        verdict="match",
+        confidence=0.97,
+        latency_ms=1000,
+        cost_usd=0.004,
+    )
+    pending = await insert_row(
+        session,
+        org,
+        user,
+        status="completed",
+        review_status="pending",
+        verdict="no_match",
+        confidence=0.62,
+        latency_ms=2000,
+        cost_usd=0.004,
+    )
+    overridden = await insert_row(
+        session,
+        org,
+        user,
+        status="completed",
+        review_status="reviewed",
+        verdict="no_match",
+        final_verdict="match",
+        reviewed_by=user,
+        reviewed_at=datetime.now(UTC),
+        confidence=0.60,
+        latency_ms=3000,
+        cost_usd=0.004,
+    )
+    copy = await insert_row(
+        session,
+        org,
+        user,
+        status="completed",
+        review_status="reviewed",
+        verdict="match",
+        final_verdict="match",
+        reviewed_by=user,
+        reviewed_at=datetime.now(UTC),
+        confidence=0.97,
+        duplicate_of=sure,
+        cost_usd=0,
+    )
+    queued = await insert_row(session, org, user)
+    await session.commit()
+    return [sure, pending, overridden, copy, queued]
+
+
+async def test_metrics_aggregate_the_org(
+    client: AsyncClient, db_session: AsyncSession, tenant: Tenant
+) -> None:
+    org, user, headers = tenant
+
+    empty = await client.get("/classifications/metrics", headers=headers)
+
+    assert empty.status_code == 200, empty.text
+    assert empty.json() == {
+        "total": 0,
+        "completed": 0,
+        "match": 0,
+        "no_match": 0,
+        "pending_review": 0,
+        "reviewed": 0,
+        "overrides": 0,
+        "override_rate": 0,
+        "avg_latency_ms": None,
+        "total_cost_usd": 0,
+        "deduplicated": 0,
+    }
+    await seed_five_rows(db_session, org, user)
+
+    response = await client.get("/classifications/metrics", headers=headers)
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "total": 5,
+        "completed": 4,
+        "match": 2,
+        "no_match": 2,
+        "pending_review": 1,
+        "reviewed": 2,
+        "overrides": 1,
+        "override_rate": 0.5,
+        "avg_latency_ms": 2000,
+        "total_cost_usd": 0.012,
+        "deduplicated": 1,
+    }
+
+
+async def test_export_csv_has_the_columns_and_the_filtered_rows(
+    client: AsyncClient, db_session: AsyncSession, tenant: Tenant
+) -> None:
+    org, user, headers = tenant
+    sure, pending, overridden, copy, queued = await seed_five_rows(
+        db_session, org, user
+    )
+
+    response = await client.get("/classifications/export.csv", headers=headers)
+
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"].startswith("text/csv")
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="classifications.csv"'
+    )
+    lines = response.text.splitlines()
+    assert lines[0] == (
+        "id,created_at,filename,submitted_by,question_label,verdict,final_verdict,"
+        "confidence,status,review_status,latency_ms,cost_usd,duplicate_of"
+    )
+    assert len(lines) == 6
+    rows = list(csv.DictReader(io.StringIO(response.text)))
+    by_id = {row["id"]: row for row in rows}
+    assert set(by_id) == {
+        str(sure),
+        str(pending),
+        str(overridden),
+        str(copy),
+        str(queued),
+    }
+    assert by_id[str(overridden)] == {
+        "id": str(overridden),
+        "created_at": by_id[str(overridden)]["created_at"],
+        "filename": "a.jpg",
+        "submitted_by": "writer",
+        "question_label": "hot dog",
+        "verdict": "no_match",
+        "final_verdict": "match",
+        "confidence": "0.600",
+        "status": "completed",
+        "review_status": "reviewed",
+        "latency_ms": "3000",
+        "cost_usd": "0.004000",
+        "duplicate_of": "",
+    }
+    assert datetime.fromisoformat(by_id[str(queued)]["created_at"]).tzinfo is not None
+    assert by_id[str(copy)]["duplicate_of"] == str(sure)
+    assert by_id[str(queued)]["verdict"] == ""
+
+    filtered = await client.get(
+        "/classifications/export.csv?verdict=no_match&status=completed",
+        headers=headers,
+    )
+
+    assert filtered.status_code == 200
+    assert len(filtered.text.splitlines()) == 3
+    bad = await client.get("/classifications/export.csv?status=done", headers=headers)
+    assert bad.status_code == 422
 
 
 async def insert_job(

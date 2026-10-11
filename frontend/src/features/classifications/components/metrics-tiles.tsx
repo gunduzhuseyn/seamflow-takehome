@@ -13,15 +13,14 @@ import { money, percent } from "../format";
 
 const integer = new Intl.NumberFormat("en-US");
 
-/** Share of completed verdicts that are hot dogs. Null before the first one. */
-function hotDogRatio(m: MetricsOut): number | null {
-  const decided = m.hot_dog + m.not_hot_dog;
-  return decided === 0 ? null : m.hot_dog / decided;
+/** Share of completed rows the model matched. Null before the first one. */
+function matchRatio(m: MetricsOut): number | null {
+  return m.completed === 0 ? null : m.match / m.completed;
 }
 
 const TILES: { label: string; value: (m: MetricsOut) => string }[] = [
   { label: "Total classified", value: (m) => integer.format(m.total) },
-  { label: "Hot dog ratio", value: (m) => percent(hotDogRatio(m)) },
+  { label: "Match ratio", value: (m) => percent(matchRatio(m)) },
   { label: "Pending review", value: (m) => integer.format(m.pending_review) },
   { label: "Override rate", value: (m) => percent(m.override_rate) },
   {

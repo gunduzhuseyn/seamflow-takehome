@@ -8,6 +8,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
+from httpx import Response
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +19,23 @@ ALL_METHODS = frozenset({"list", "get", "create", "patch", "delete"})
 
 
 @dataclass(frozen=True)
+class ItemAction:
+    """A POST on one row: `{collection}/{id}/{suffix}`. A foreign row is 404."""
+
+    suffix: str
+    body: dict[str, object]
+
+
+@dataclass(frozen=True)
+class Report:
+    """A GET on the collection that covers every row of the org, such as a
+    total or an export. `count` reads how many rows the response covers."""
+
+    path: str
+    count: Callable[[Response], int]
+
+
+@dataclass(frozen=True)
 class TenantRoutes:
     collection: str
     create_body: dict[str, object]
@@ -25,6 +43,8 @@ class TenantRoutes:
     insert_row: RowFactory
     # The routes the table has. A read-only table lists only "get".
     methods: frozenset[str] = ALL_METHODS
+    actions: tuple[ItemAction, ...] = ()
+    reports: tuple[Report, ...] = ()
 
     def item(self, row_id: uuid.UUID | str) -> str:
         return f"{self.collection}/{row_id}"
@@ -114,6 +134,15 @@ REGISTRY: dict[str, TenantRoutes] = {
         update_body={},
         insert_row=insert_classification,
         methods=frozenset({"list", "get"}),
+        actions=(ItemAction("review", {"final_verdict": "match"}),),
+        reports=(
+            Report("/classifications/metrics", lambda r: r.json()["total"]),
+            # Lines minus the header.
+            Report(
+                "/classifications/export.csv",
+                lambda r: len(r.text.splitlines()) - 1,
+            ),
+        ),
     ),
 }
 

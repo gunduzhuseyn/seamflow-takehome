@@ -3,8 +3,8 @@
 import { queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { authMe, classificationsCreate, classificationsCreateUpload, classificationsGet, classificationsList, healthHealth, jobsGet, llmCallsGet, type Options, orgsRenameCurrent } from '../sdk.gen';
-import type { AuthMeData, AuthMeError, AuthMeResponse, ClassificationsCreateData, ClassificationsCreateError, ClassificationsCreateResponse, ClassificationsCreateUploadData, ClassificationsCreateUploadError, ClassificationsCreateUploadResponse, ClassificationsGetData, ClassificationsGetError, ClassificationsGetResponse, ClassificationsListData, ClassificationsListError, ClassificationsListResponse, HealthHealthData, HealthHealthError, HealthHealthResponse, JobsGetData, JobsGetError, JobsGetResponse, LlmCallsGetData, LlmCallsGetError, LlmCallsGetResponse, OrgsRenameCurrentData, OrgsRenameCurrentError, OrgsRenameCurrentResponse } from '../types.gen';
+import { authMe, classificationsCreate, classificationsCreateUpload, classificationsExportCsv, classificationsGet, classificationsList, classificationsMetrics, classificationsReview, healthHealth, jobsGet, llmCallsGet, type Options, orgsRenameCurrent } from '../sdk.gen';
+import type { AuthMeData, AuthMeError, AuthMeResponse, ClassificationsCreateData, ClassificationsCreateError, ClassificationsCreateResponse, ClassificationsCreateUploadData, ClassificationsCreateUploadError, ClassificationsCreateUploadResponse, ClassificationsExportCsvData, ClassificationsExportCsvError, ClassificationsGetData, ClassificationsGetError, ClassificationsGetResponse, ClassificationsListData, ClassificationsListError, ClassificationsListResponse, ClassificationsMetricsData, ClassificationsMetricsError, ClassificationsMetricsResponse, ClassificationsReviewData, ClassificationsReviewError, ClassificationsReviewResponse, HealthHealthData, HealthHealthError, HealthHealthResponse, JobsGetData, JobsGetError, JobsGetResponse, LlmCallsGetData, LlmCallsGetError, LlmCallsGetResponse, OrgsRenameCurrentData, OrgsRenameCurrentError, OrgsRenameCurrentResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -134,6 +134,63 @@ export const classificationsCreateMutation = (options?: Partial<Options<Classifi
     const mutationOptions: UseMutationOptions<ClassificationsCreateResponse, ClassificationsCreateError, Options<ClassificationsCreateData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await classificationsCreate({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const classificationsMetricsQueryKey = (options?: Options<ClassificationsMetricsData>) => createQueryKey('classificationsMetrics', options);
+
+/**
+ * Metrics
+ */
+export const classificationsMetricsOptions = (options?: Options<ClassificationsMetricsData>) => queryOptions<ClassificationsMetricsResponse, ClassificationsMetricsError, ClassificationsMetricsResponse, ReturnType<typeof classificationsMetricsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await classificationsMetrics({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: classificationsMetricsQueryKey(options)
+});
+
+export const classificationsExportCsvQueryKey = (options?: Options<ClassificationsExportCsvData>) => createQueryKey('classificationsExportCsv', options);
+
+/**
+ * Export Csv
+ *
+ * Every row that matches the list filters, newest first.
+ */
+export const classificationsExportCsvOptions = (options?: Options<ClassificationsExportCsvData>) => queryOptions<unknown, ClassificationsExportCsvError, unknown, ReturnType<typeof classificationsExportCsvQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await classificationsExportCsv({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: classificationsExportCsvQueryKey(options)
+});
+
+/**
+ * Review
+ *
+ * Confirm or override the model verdict of a completed row.
+ */
+export const classificationsReviewMutation = (options?: Partial<Options<ClassificationsReviewData>>): UseMutationOptions<ClassificationsReviewResponse, ClassificationsReviewError, Options<ClassificationsReviewData>> => {
+    const mutationOptions: UseMutationOptions<ClassificationsReviewResponse, ClassificationsReviewError, Options<ClassificationsReviewData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await classificationsReview({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
