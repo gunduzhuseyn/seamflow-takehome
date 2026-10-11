@@ -51,15 +51,18 @@ POST /uploads                      body {filename, content_type, size_bytes}
 POST /classifications              body {key, filename}
                                    202 ClassificationOut (status queued)
                                    429 when the per-user rate limit is hit
-GET  /classifications              query limit=50, status, review_status, verdict
-                                   200 {items: ClassificationOut[], total}
+GET  /classifications              query limit=50, offset=0, status, review_status, verdict,
+                                   question_label (exact, lower-cased)
+                                   200 {items: ClassificationOut[], total}; total counts with the filters
+GET  /classifications/labels       200 string[]: the org's distinct question_label values,
+                                   most recent first, max 50
 GET  /classifications/{id}         200 ClassificationOut
 POST /classifications/{id}/review  body {final_verdict}
                                    200 ClassificationOut
 GET  /classifications/metrics      200 {total, completed, hot_dog, not_hot_dog, pending_review,
                                         reviewed, overrides, override_rate, avg_latency_ms,
                                         total_cost_usd, deduplicated}
-GET  /classifications/export.csv   200 text/csv, same filters as the list
+GET  /classifications/export.csv   200 text/csv, same filters as the list, no offset
 
 ClassificationOut {
   id, created_at, updated_at, filename, submitted_by_name,

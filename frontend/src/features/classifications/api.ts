@@ -63,9 +63,24 @@ export type ClassificationList = {
 
 export type ClassificationListQuery = {
   limit?: number;
+  offset?: number;
   status?: ClassificationStatus;
   review_status?: ReviewStatus;
   verdict?: Verdict;
+  /** Exact match on the stored, lower-cased label. */
+  question_label?: string;
+};
+
+/** The filters the CSV export shares with the list. */
+export type ClassificationFilters = Omit<
+  ClassificationListQuery,
+  "limit" | "offset"
+>;
+
+export type CsvExport = {
+  blob: Blob;
+  /** From the Content-Disposition header. Null when the header has none. */
+  filename: string | null;
 };
 
 export type ReviewCreate = {
@@ -214,15 +229,31 @@ export function getMetrics(): Promise<MetricsOut> {
   return apiFetch<MetricsOut>("/classifications/metrics", { method: "GET" });
 }
 
+/** GET /classifications/labels: the org's distinct questions, newest first. */
+export function listLabels(): Promise<string[]> {
+  return apiFetch<string[]>("/classifications/labels", { method: "GET" });
+}
+
+/** `attachment; filename="x.csv"` gives "x.csv". Null when there is none. */
+export function filenameFromDisposition(header: string | null): string | null {
+  const match = header?.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 /** GET /classifications/export.csv with the same filters as the list. */
 export async function exportClassificationsCsv(
-  query: ClassificationListQuery = {},
-): Promise<Blob> {
+  query: ClassificationFilters = {},
+): Promise<CsvExport> {
   const response = await apiRequest(
     `/classifications/export.csv${toSearch(query)}`,
     { method: "GET", accept: "text/csv" },
   );
-  return response.blob();
+  return {
+    blob: await response.blob(),
+    filename: filenameFromDisposition(
+      response.headers.get("Content-Disposition"),
+    ),
+  };
 }
 
 export const classificationsQueryKey = (query: ClassificationListQuery = {}) =>
@@ -234,6 +265,14 @@ export const listClassificationsOptions = (
   queryOptions({
     queryKey: classificationsQueryKey(query),
     queryFn: () => listClassifications(query),
+  });
+
+export const labelsQueryKey = ["classification-labels"] as const;
+
+export const labelsOptions = () =>
+  queryOptions({
+    queryKey: labelsQueryKey,
+    queryFn: listLabels,
   });
 
 export const metricsQueryKey = ["classification-metrics"] as const;

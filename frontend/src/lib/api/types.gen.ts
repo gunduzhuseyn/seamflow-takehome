@@ -610,6 +610,10 @@ export type ClassificationsListData = {
          */
         limit?: number;
         /**
+         * Offset
+         */
+        offset?: number;
+        /**
          * Status
          */
         status?: ClassificationStatus | null;
@@ -621,6 +625,10 @@ export type ClassificationsListData = {
          * Verdict
          */
         verdict?: Verdict | null;
+        /**
+         * Question Label
+         */
+        question_label?: string | null;
     };
     url: '/classifications';
 };
@@ -705,6 +713,39 @@ export type ClassificationsMetricsResponses = {
 
 export type ClassificationsMetricsResponse = ClassificationsMetricsResponses[keyof ClassificationsMetricsResponses];
 
+export type ClassificationsLabelsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Org-Id
+         */
+        'x-org-id'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/classifications/labels';
+};
+
+export type ClassificationsLabelsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassificationsLabelsError = ClassificationsLabelsErrors[keyof ClassificationsLabelsErrors];
+
+export type ClassificationsLabelsResponses = {
+    /**
+     * Response Classifications-Labels
+     *
+     * Successful Response
+     */
+    200: Array<string>;
+};
+
+export type ClassificationsLabelsResponse = ClassificationsLabelsResponses[keyof ClassificationsLabelsResponses];
+
 export type ClassificationsExportCsvData = {
     body?: never;
     headers?: {
@@ -727,6 +768,10 @@ export type ClassificationsExportCsvData = {
          * Verdict
          */
         verdict?: Verdict | null;
+        /**
+         * Question Label
+         */
+        question_label?: string | null;
     };
     url: '/classifications/export.csv';
 };

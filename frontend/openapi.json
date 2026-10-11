@@ -310,6 +310,17 @@
             }
           },
           {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
             "name": "status",
             "in": "query",
             "required": false,
@@ -355,6 +366,23 @@
                 }
               ],
               "title": "Verdict"
+            }
+          },
+          {
+            "name": "question_label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Question Label"
             }
           },
           {
@@ -454,6 +482,66 @@
         }
       }
     },
+    "/classifications/labels": {
+      "get": {
+        "tags": [
+          "classifications"
+        ],
+        "summary": "Labels",
+        "description": "The distinct questions of the caller's org, most recently used first.",
+        "operationId": "classifications-labels",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-org-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Org-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response Classifications-Labels"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/classifications/export.csv": {
       "get": {
         "tags": [
@@ -514,6 +602,23 @@
                 }
               ],
               "title": "Verdict"
+            }
+          },
+          {
+            "name": "question_label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Question Label"
             }
           },
           {

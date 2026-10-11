@@ -87,7 +87,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-        expose_headers=["X-Request-Id"],
+        # The browser reads the CSV filename from Content-Disposition.
+        expose_headers=["X-Request-Id", "Content-Disposition"],
     )
     app.include_router(health_router)
     app.include_router(auth_router)
