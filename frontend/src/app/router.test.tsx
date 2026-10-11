@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -54,7 +54,7 @@ vi.mock("@clerk/react", async () => {
     SignIn: ({ withSignUp }: { withSignUp?: boolean }) => (
       <form aria-label={withSignUp ? "Sign in or sign up" : "Sign in"} />
     ),
-    SignOutButton: ({ children }: { children: ReactNode }) => children,
+    UserButton: () => <button type="button">Open user menu</button>,
     getToken: vi.fn(() =>
       Promise.resolve(auth.signedIn ? TEST_SESSION_TOKEN : null),
     ),
@@ -84,25 +84,48 @@ describe("routes", () => {
       ).toBeInTheDocument();
       expect(screen.queryByText("SeeFood Enterprise")).not.toBeInTheDocument();
       expect(
-        screen.queryByRole("button", { name: "Sign out" }),
+        screen.queryByRole("button", { name: "Open user menu" }),
       ).not.toBeInTheDocument();
     },
   );
 
-  it("shows the Classify page with the user's name on / when signed in", async () => {
+  it("shows the shell and the Classify page on / when signed in", async () => {
     auth.signedIn = true;
 
     renderAt("/");
 
     expect(
-      await screen.findByText("Signed in as Ada Lovelace."),
+      await screen.findByRole("heading", { name: "Classify" }),
     ).toBeInTheDocument();
     expect(screen.getByText("SeeFood Enterprise")).toBeInTheDocument();
-    expect(screen.getByText("Classify")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign out" })).toBeVisible();
+    const nav = screen.getByRole("navigation", { name: "Main" });
+    expect(
+      within(nav)
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual(["Classify", "Review", "History", "Dashboard"]);
+    // The org name comes from /me with the session token.
+    expect(await screen.findByText(ME.org.name)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open user menu" }),
+    ).toBeVisible();
     expect(
       screen.queryByRole("form", { name: /^Sign in/ }),
     ).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["/review", "Review"],
+    ["/history", "History"],
+    ["/dashboard", "Dashboard"],
+  ])("renders the %s placeholder with its header", async (path, title) => {
+    auth.signedIn = true;
+
+    renderAt(path);
+
+    expect(
+      await screen.findByRole("heading", { name: title }),
+    ).toBeInTheDocument();
   });
 
   it("sends a signed-in user on an unknown path to /", async () => {
@@ -111,7 +134,7 @@ describe("routes", () => {
     const { router } = renderAt("/unknown/page");
 
     expect(
-      await screen.findByText("Signed in as Ada Lovelace."),
+      await screen.findByRole("heading", { name: "Classify" }),
     ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/");
   });
@@ -119,10 +142,8 @@ describe("routes", () => {
   it("empties the query cache on sign-out", async () => {
     auth.signedIn = true;
     const { queryClient } = renderAt("/");
-    await screen.findByText("Signed in as Ada Lovelace.");
-    // The placeholder page runs no query, so seed one as a later page would.
-    queryClient.setQueryData(["me"], ME);
-    expect(queryClient.getQueryCache().getAll()).toHaveLength(1);
+    expect(await screen.findByText(ME.org.name)).toBeInTheDocument();
+    expect(queryClient.getQueryCache().getAll().length).toBeGreaterThan(0);
 
     act(() => {
       auth.set(false);

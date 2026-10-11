@@ -1,13 +1,27 @@
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
 
-import { HomeRoute } from "./routes/home";
+import { AppShell } from "./routes/app-shell";
+import { ClassifyRoute } from "./routes/classify";
+import {
+  DashboardRoute,
+  HistoryRoute,
+  ReviewRoute,
+} from "./routes/placeholders";
 import { ProtectedLayout } from "./routes/protected-layout";
 
 export const routes: RouteObject[] = [
   {
     Component: ProtectedLayout,
     children: [
-      { path: "/", Component: HomeRoute },
+      {
+        Component: AppShell,
+        children: [
+          { index: true, Component: ClassifyRoute },
+          { path: "review", Component: ReviewRoute },
+          { path: "history", Component: HistoryRoute },
+          { path: "dashboard", Component: DashboardRoute },
+        ],
+      },
       // Unknown paths go home, behind the same sign-in check.
       { path: "*", element: <Navigate to="/" replace /> },
     ],
