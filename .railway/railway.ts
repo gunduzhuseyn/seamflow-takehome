@@ -60,6 +60,12 @@ export default defineRailway(() => {
       SEED_USER_EMAIL: preserve(),
       SEED_USER_PASSWORD: preserve(),
       ANTHROPIC_API_KEY: preserve(),
+      // Cloudflare R2 through the S3 API. Values from the R2 dashboard.
+      STORAGE_ENDPOINT_URL: preserve(),
+      STORAGE_ACCESS_KEY_ID: preserve(),
+      STORAGE_SECRET_ACCESS_KEY: preserve(),
+      STORAGE_BUCKET: preserve(),
+      STORAGE_REGION: preserve(),
     },
   });
 
@@ -81,6 +87,11 @@ export default defineRailway(() => {
       SEED_USER_EMAIL: api.env.SEED_USER_EMAIL,
       SEED_USER_PASSWORD: api.env.SEED_USER_PASSWORD,
       ANTHROPIC_API_KEY: api.env.ANTHROPIC_API_KEY,
+      STORAGE_ENDPOINT_URL: api.env.STORAGE_ENDPOINT_URL,
+      STORAGE_ACCESS_KEY_ID: api.env.STORAGE_ACCESS_KEY_ID,
+      STORAGE_SECRET_ACCESS_KEY: api.env.STORAGE_SECRET_ACCESS_KEY,
+      STORAGE_BUCKET: api.env.STORAGE_BUCKET,
+      STORAGE_REGION: api.env.STORAGE_REGION,
     },
   });
 

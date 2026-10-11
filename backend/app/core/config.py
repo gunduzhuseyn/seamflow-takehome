@@ -21,6 +21,9 @@ PLACEHOLDERS = {
     "SEED_USER_EMAIL": "replace-me+clerk_test@example.com",
     "SEED_USER_PASSWORD": "replace-me-with-a-long-password",
     "ANTHROPIC_API_KEY": "sk-ant-replace_me",
+    "STORAGE_ENDPOINT_URL": "http://localhost:9000",
+    "STORAGE_ACCESS_KEY_ID": "rustfsadmin",
+    "STORAGE_SECRET_ACCESS_KEY": "rustfsadmin",
 }
 
 # The shared Clerk development instance. Both values are public.
@@ -106,14 +109,24 @@ class Settings(LoggingSettings):
     LLM_PROVIDER: LLMProviderName = LLMProviderName.anthropic
     LLM_MODEL: str = "claude-sonnet-5-5"
     LLM_MAX_OUTPUT_TOKENS: int = 1024
-    # Estimated before the call as characters divided by four.
-    LLM_INPUT_TOKEN_LIMIT: int = 8000
+    # Largest model input, in bytes, after the resize.
+    LLM_MAX_IMAGE_BYTES: int = 2 * 1024 * 1024
     # Per user, counted in Redis.
     LLM_RATE_LIMIT_PER_MINUTE: int = 10
     # One attempt. The SDK retries that many more times on 408, 409, 429,
     # 5xx, and connection errors.
     LLM_TIMEOUT_SECONDS: float = 60.0
     LLM_MAX_RETRIES: int = 2
+
+    # Object storage through the S3 API: RustFS in Compose, Cloudflare R2 live.
+    STORAGE_ENDPOINT_URL: str
+    # The endpoint the browser reaches. Only presigned URLs carry it.
+    # Default: STORAGE_ENDPOINT_URL.
+    STORAGE_PUBLIC_ENDPOINT_URL: str = ""
+    STORAGE_ACCESS_KEY_ID: str
+    STORAGE_SECRET_ACCESS_KEY: str
+    STORAGE_BUCKET: str = "seamflow-takehome"
+    STORAGE_REGION: str = "auto"
 
     # Runs of one job before it is failed. Stored on the job row at enqueue.
     WORKER_MAX_ATTEMPTS: int = 3
@@ -138,6 +151,8 @@ class Settings(LoggingSettings):
         if "CLERK_AUTHORIZED_PARTIES" not in self.model_fields_set:
             # setattr: pyright reads an uppercase attribute as a constant.
             setattr(self, "CLERK_AUTHORIZED_PARTIES", list(self.CORS_ORIGINS))  # noqa: B010
+        if not self.STORAGE_PUBLIC_ENDPOINT_URL:
+            setattr(self, "STORAGE_PUBLIC_ENDPOINT_URL", self.STORAGE_ENDPOINT_URL)  # noqa: B010
         if self.ENVIRONMENT is Environment.production:
             if self.LLM_PROVIDER is not LLMProviderName.anthropic:
                 raise ValueError("LLM_PROVIDER must be anthropic in production.")

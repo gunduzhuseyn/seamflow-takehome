@@ -1,13 +1,22 @@
 """The real provider against a replayed SSE wire stream. No network."""
 
 import json
+from dataclasses import replace
 from typing import Any
 
 import httpx2
 from anthropic import DefaultAsyncHttpxClient
 
 from app.llm.anthropic_provider import AnthropicProvider
-from app.llm.provider import Error, LLMEvent, LLMRequest, TextDelta, ToolInput, Usage
+from app.llm.provider import (
+    Error,
+    ImageInput,
+    LLMEvent,
+    LLMRequest,
+    TextDelta,
+    ToolInput,
+    Usage,
+)
 
 # Copied from the streaming page of the Claude docs, "Streaming request with
 # tool use", with the tool renamed. Each event is one SSE frame.
@@ -104,8 +113,10 @@ def provider_with(
     )
 
 
-async def collect(provider: AnthropicProvider) -> list[LLMEvent]:
-    return [event async for event in provider.stream(REQUEST)]
+async def collect(
+    provider: AnthropicProvider, request: LLMRequest = REQUEST
+) -> list[LLMEvent]:
+    return [event async for event in provider.stream(request)]
 
 
 async def test_valid_stream_parses_text_tool_input_and_usage() -> None:
@@ -139,7 +150,45 @@ async def test_valid_stream_parses_text_tool_input_and_usage() -> None:
     assert body["tools"][0]["name"] == "note_summary"
     assert body["tools"][0]["strict"] is True
     assert body["tools"][0]["input_schema"] == REQUEST.tool_schema
-    assert body["messages"] == [{"role": "user", "content": REQUEST.user}]
+    assert body["messages"] == [
+        {"role": "user", "content": [{"type": "text", "text": REQUEST.user}]}
+    ]
+
+
+async def test_images_go_before_the_text_as_base64_blocks() -> None:
+    sent: list[dict[str, Any]] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        sent.append(json.loads(request.content))
+        return httpx2.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            content=wire(WIRE_EVENTS),
+        )
+
+    image = ImageInput(media_type="image/jpeg", data_base64="/9j/4AAQ")
+    request = replace(REQUEST, images=[image])
+
+    events = await collect(provider_with(handler), request)
+
+    assert isinstance(events[-1], Usage)
+    (body,) = sent
+    assert body["messages"] == [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "image/jpeg",
+                        "data": "/9j/4AAQ",
+                    },
+                },
+                {"type": "text", "text": REQUEST.user},
+            ],
+        }
+    ]
 
 
 async def test_interrupted_stream_ends_with_a_provider_error() -> None:

@@ -1,0 +1,12 @@
+[
+  {"type": "text", "text": "Looking at the image."},
+  {
+    "type": "tool_input",
+    "input": {
+      "verdict": "hot_dog",
+      "confidence": 0.97,
+      "observations": "A grilled sausage in a split bun with mustard on a paper tray."
+    }
+  },
+  {"type": "usage", "input_tokens": 1600, "output_tokens": 60, "stop_reason": "tool_use"}
+]

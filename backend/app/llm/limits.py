@@ -1,4 +1,4 @@
-"""Server-side limits before a call: input size and a per-user rate."""
+"""Server-side limits before a call: the model input size and a per-user rate."""
 
 import time
 import uuid
@@ -6,22 +6,21 @@ import uuid
 from fastapi import HTTPException, status
 from redis.asyncio import Redis
 
-# A rough estimate for English text. The real count comes back in usage.
-CHARS_PER_TOKEN = 4
 WINDOW_SECONDS = 60
 
 
-def estimate_tokens(*texts: str) -> int:
-    return sum(len(text) for text in texts) // CHARS_PER_TOKEN
+class InputTooLargeError(Exception):
+    """The model input is over LLM_MAX_IMAGE_BYTES. The worker raises it."""
+
+    def __init__(self, size: int, limit: int) -> None:
+        super().__init__(f"Model input is {size} bytes. The limit is {limit}.")
+        self.size = size
+        self.limit = limit
 
 
-def check_input_limit(limit: int, *texts: str) -> None:
-    estimate = estimate_tokens(*texts)
-    if estimate > limit:
-        raise HTTPException(
-            status.HTTP_413_CONTENT_TOO_LARGE,
-            detail=f"Input is about {estimate} tokens. The limit is {limit}.",
-        )
+def check_input_limit(limit: int, data: bytes) -> None:
+    if len(data) > limit:
+        raise InputTooLargeError(len(data), limit)
 
 
 async def enforce_rate_limit(redis: Redis, user_id: uuid.UUID, limit: int) -> None:

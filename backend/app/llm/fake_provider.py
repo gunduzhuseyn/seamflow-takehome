@@ -34,19 +34,25 @@ def _event(raw: dict[str, Any]) -> LLMEvent:
 
 
 class FakeProvider:
-    """Replays `fixture` from `fixtures_dir`. Records every request."""
+    """Replays `fixture` from `fixtures_dir`. Records every request.
+
+    A test that needs a sequence puts fixture names on `queue`. Each call
+    takes the first one, then falls back to `fixture`.
+    """
 
     def __init__(
         self, fixtures_dir: Path = FIXTURES_DIR, fixture: str = "valid"
     ) -> None:
         self.fixtures_dir = fixtures_dir
         self.fixture = fixture
+        self.queue: list[str] = []
         self.requests: list[LLMRequest] = []
 
     async def stream(self, request: LLMRequest) -> AsyncIterator[LLMEvent]:
         self.requests.append(request)
+        fixture = self.queue.pop(0) if self.queue else self.fixture
         raw: list[dict[str, Any]] = json.loads(
-            (self.fixtures_dir / f"{self.fixture}.json").read_text()
+            (self.fixtures_dir / f"{fixture}.json").read_text()
         )
         for item in raw:
             yield _event(item)

@@ -1,4 +1,4 @@
-"""Prompts are files in app/llm/prompts/. The first line is `version: N`."""
+"""Prompts are files in a `prompts/` folder. The first line is `version: N`."""
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,10 +13,10 @@ class Prompt:
     text: str
 
 
-def load_prompt(name: str) -> Prompt:
+def load_prompt(name: str, directory: Path = PROMPTS_DIR) -> Prompt:
     """Read `<name>.md`: a `version: N` line, a `---` line, then the text."""
     header, separator, text = (
-        (PROMPTS_DIR / f"{name}.md").read_text().partition("\n---\n")
+        (directory / f"{name}.md").read_text().partition("\n---\n")
     )
     if not separator or not header.startswith("version: "):
         raise ValueError(f"prompt {name} needs a 'version: N' line, then '---'")

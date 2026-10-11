@@ -22,6 +22,7 @@ frontend/node_modules/.stamp: frontend/package-lock.json
 # processes.
 dev: setup
 	docker compose up -d --wait
+	$(MAKE) -C backend storage-init
 	$(MAKE) -C backend migrate
 	$(MAKE) -C backend seed
 	$(MAKE) -j3 serve-backend serve-frontend serve-worker

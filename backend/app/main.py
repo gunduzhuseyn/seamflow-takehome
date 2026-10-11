@@ -21,6 +21,7 @@ from app.llm.anthropic_provider import AnthropicProvider
 from app.llm.fake_provider import FakeProvider
 from app.llm.provider import LLMProvider
 from app.llm.router import router as llm_router
+from app.storage.client import S3Storage
 
 
 def generate_unique_id(route: APIRoute) -> str:
@@ -48,6 +49,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     )
     app.state.clerk = ClerkBackend(settings.CLERK_SECRET_KEY)
     app.state.llm_provider = create_llm_provider(settings)
+    app.state.storage = S3Storage.from_settings(settings)
     try:
         yield
     finally:
