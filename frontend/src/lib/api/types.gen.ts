@@ -10,6 +10,101 @@ export type ClientOptions = {
 export type CallStatus = 'running' | 'succeeded' | 'failed' | 'invalid_output';
 
 /**
+ * ClassificationCreate
+ */
+export type ClassificationCreate = {
+    /**
+     * Key
+     */
+    key: string;
+    /**
+     * Filename
+     */
+    filename: string;
+};
+
+/**
+ * ClassificationList
+ */
+export type ClassificationList = {
+    /**
+     * Items
+     */
+    items: Array<ClassificationOut>;
+    /**
+     * Total
+     */
+    total: number;
+};
+
+/**
+ * ClassificationOut
+ */
+export type ClassificationOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    /**
+     * Filename
+     */
+    filename: string;
+    /**
+     * Submitted By Name
+     */
+    submitted_by_name: string;
+    status: ClassificationStatus;
+    review_status: ReviewStatus;
+    verdict: Verdict | null;
+    /**
+     * Confidence
+     */
+    confidence: number | null;
+    /**
+     * Observations
+     */
+    observations: string | null;
+    final_verdict: Verdict | null;
+    /**
+     * Reviewed At
+     */
+    reviewed_at: string | null;
+    /**
+     * Latency Ms
+     */
+    latency_ms: number | null;
+    /**
+     * Cost Usd
+     */
+    cost_usd: number;
+    /**
+     * Duplicate Of
+     */
+    duplicate_of: string | null;
+    /**
+     * Thumbnail Url
+     */
+    thumbnail_url: string | null;
+    /**
+     * Error Code
+     */
+    error_code: string | null;
+};
+
+/**
+ * ClassificationStatus
+ */
+export type ClassificationStatus = 'queued' | 'processing' | 'completed' | 'failed';
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -210,9 +305,50 @@ export type OrgRename = {
 };
 
 /**
+ * ReviewStatus
+ */
+export type ReviewStatus = 'not_required' | 'pending' | 'reviewed';
+
+/**
  * Role
  */
 export type Role = 'admin' | 'member';
+
+/**
+ * UploadCreate
+ */
+export type UploadCreate = {
+    /**
+     * Filename
+     */
+    filename: string;
+    /**
+     * Content Type
+     */
+    content_type: string;
+    /**
+     * Size Bytes
+     */
+    size_bytes: number;
+};
+
+/**
+ * UploadOut
+ */
+export type UploadOut = {
+    /**
+     * Key
+     */
+    key: string;
+    /**
+     * Upload Url
+     */
+    upload_url: string;
+    /**
+     * Expires In
+     */
+    expires_in: number;
+};
 
 /**
  * UserOut
@@ -255,6 +391,11 @@ export type ValidationError = {
         [key: string]: unknown;
     };
 };
+
+/**
+ * Verdict
+ */
+export type Verdict = 'hot_dog' | 'not_hot_dog';
 
 export type HealthHealthData = {
     body?: never;
@@ -342,6 +483,152 @@ export type OrgsRenameCurrentResponses = {
 };
 
 export type OrgsRenameCurrentResponse = OrgsRenameCurrentResponses[keyof OrgsRenameCurrentResponses];
+
+export type ClassificationsCreateUploadData = {
+    body: UploadCreate;
+    headers?: {
+        /**
+         * X-Org-Id
+         */
+        'x-org-id'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/uploads';
+};
+
+export type ClassificationsCreateUploadErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassificationsCreateUploadError = ClassificationsCreateUploadErrors[keyof ClassificationsCreateUploadErrors];
+
+export type ClassificationsCreateUploadResponses = {
+    /**
+     * Successful Response
+     */
+    201: UploadOut;
+};
+
+export type ClassificationsCreateUploadResponse = ClassificationsCreateUploadResponses[keyof ClassificationsCreateUploadResponses];
+
+export type ClassificationsListData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Org-Id
+         */
+        'x-org-id'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Status
+         */
+        status?: ClassificationStatus | null;
+        /**
+         * Review Status
+         */
+        review_status?: ReviewStatus | null;
+        /**
+         * Verdict
+         */
+        verdict?: Verdict | null;
+    };
+    url: '/classifications';
+};
+
+export type ClassificationsListErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassificationsListError = ClassificationsListErrors[keyof ClassificationsListErrors];
+
+export type ClassificationsListResponses = {
+    /**
+     * Successful Response
+     */
+    200: ClassificationList;
+};
+
+export type ClassificationsListResponse = ClassificationsListResponses[keyof ClassificationsListResponses];
+
+export type ClassificationsCreateData = {
+    body: ClassificationCreate;
+    headers?: {
+        /**
+         * X-Org-Id
+         */
+        'x-org-id'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/classifications';
+};
+
+export type ClassificationsCreateErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassificationsCreateError = ClassificationsCreateErrors[keyof ClassificationsCreateErrors];
+
+export type ClassificationsCreateResponses = {
+    /**
+     * Successful Response
+     */
+    202: ClassificationOut;
+};
+
+export type ClassificationsCreateResponse = ClassificationsCreateResponses[keyof ClassificationsCreateResponses];
+
+export type ClassificationsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Org-Id
+         */
+        'x-org-id'?: string | null;
+    };
+    path: {
+        /**
+         * Classification Id
+         */
+        classification_id: string;
+    };
+    query?: never;
+    url: '/classifications/{classification_id}';
+};
+
+export type ClassificationsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClassificationsGetError = ClassificationsGetErrors[keyof ClassificationsGetErrors];
+
+export type ClassificationsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ClassificationOut;
+};
+
+export type ClassificationsGetResponse = ClassificationsGetResponses[keyof ClassificationsGetResponses];
 
 export type JobsGetData = {
     body?: never;

@@ -68,6 +68,27 @@ async def insert_job(
     return job_id
 
 
+async def insert_classification(
+    session: AsyncSession, org_id: uuid.UUID, user_id: uuid.UUID
+) -> uuid.UUID:
+    row_id = uuid.uuid4()
+    await session.execute(
+        text(
+            "INSERT INTO classifications (id, org_id, submitted_by, created_at, "
+            "updated_at, filename, original_key, status, review_status, cost_usd) "
+            "VALUES (:id, :org_id, :user, now(), now(), 'a.jpg', :key, 'queued', "
+            "'not_required', 0)"
+        ),
+        {
+            "id": row_id,
+            "org_id": org_id,
+            "user": user_id,
+            "key": f"incoming/{org_id}/{row_id}",
+        },
+    )
+    return row_id
+
+
 REGISTRY: dict[str, TenantRoutes] = {
     # Written by the feature that runs a call. Only GET /llm-calls/{id} exists.
     "llm_calls": TenantRoutes(
@@ -84,6 +105,15 @@ REGISTRY: dict[str, TenantRoutes] = {
         update_body={},
         insert_row=insert_job,
         methods=frozenset({"get"}),
+    ),
+    # Create needs a key under the caller's org and returns 202.
+    # acceptance/test_classifications.py covers it.
+    "classifications": TenantRoutes(
+        collection="/classifications",
+        create_body={},
+        update_body={},
+        insert_row=insert_classification,
+        methods=frozenset({"list", "get"}),
     ),
 }
 

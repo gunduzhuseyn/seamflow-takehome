@@ -118,7 +118,10 @@ async def test_list_shows_only_own_rows(
     response = await client.get(routes.collection, headers=a.headers)
 
     assert response.status_code == 200
-    assert sorted(row["id"] for row in response.json()) == sorted(map(str, a.rows))
+    body = response.json()
+    # A paged list wraps its rows in `items`.
+    rows: list[dict[str, Any]] = body["items"] if "items" in body else body
+    assert sorted(row["id"] for row in rows) == sorted(map(str, a.rows))
 
 
 @pytest.mark.parametrize("table", _with("get"))

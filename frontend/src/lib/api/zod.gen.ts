@@ -13,6 +13,24 @@ export const zCallStatus = z.enum([
 ]);
 
 /**
+ * ClassificationCreate
+ */
+export const zClassificationCreate = z.object({
+    key: z.string().min(1).max(512),
+    filename: z.string().min(1).max(255)
+});
+
+/**
+ * ClassificationStatus
+ */
+export const zClassificationStatus = z.enum([
+    'queued',
+    'processing',
+    'completed',
+    'failed'
+]);
+
+/**
  * HealthResponse
  */
 export const zHealthResponse = z.object({
@@ -87,6 +105,15 @@ export const zOrgRename = z.object({
 });
 
 /**
+ * ReviewStatus
+ */
+export const zReviewStatus = z.enum([
+    'not_required',
+    'pending',
+    'reviewed'
+]);
+
+/**
  * Role
  */
 export const zRole = z.enum(['admin', 'member']);
@@ -97,6 +124,24 @@ export const zRole = z.enum(['admin', 'member']);
 export const zMembershipOut = z.object({
     org: zOrgOut,
     role: zRole
+});
+
+/**
+ * UploadCreate
+ */
+export const zUploadCreate = z.object({
+    filename: z.string().min(1).max(255),
+    content_type: z.string(),
+    size_bytes: z.int()
+});
+
+/**
+ * UploadOut
+ */
+export const zUploadOut = z.object({
+    key: z.string(),
+    upload_url: z.string(),
+    expires_in: z.int()
 });
 
 /**
@@ -136,6 +181,42 @@ export const zHttpValidationError = z.object({
 });
 
 /**
+ * Verdict
+ */
+export const zVerdict = z.enum(['hot_dog', 'not_hot_dog']);
+
+/**
+ * ClassificationOut
+ */
+export const zClassificationOut = z.object({
+    id: z.uuid(),
+    created_at: z.iso.datetime(),
+    updated_at: z.iso.datetime(),
+    filename: z.string(),
+    submitted_by_name: z.string(),
+    status: zClassificationStatus,
+    review_status: zReviewStatus,
+    verdict: zVerdict.nullable(),
+    confidence: z.number().nullable(),
+    observations: z.string().nullable(),
+    final_verdict: zVerdict.nullable(),
+    reviewed_at: z.iso.datetime().nullable(),
+    latency_ms: z.int().nullable(),
+    cost_usd: z.number(),
+    duplicate_of: z.uuid().nullable(),
+    thumbnail_url: z.string().nullable(),
+    error_code: z.string().nullable()
+});
+
+/**
+ * ClassificationList
+ */
+export const zClassificationList = z.object({
+    items: z.array(zClassificationOut),
+    total: z.int()
+});
+
+/**
  * Successful Response
  */
 export const zHealthHealthResponse = zHealthResponse;
@@ -159,6 +240,57 @@ export const zOrgsRenameCurrentHeaders = z.object({
  * Successful Response
  */
 export const zOrgsRenameCurrentResponse = zOrgOut;
+
+export const zClassificationsCreateUploadBody = zUploadCreate;
+
+export const zClassificationsCreateUploadHeaders = z.object({
+    'x-org-id': z.uuid().nullish()
+});
+
+/**
+ * Successful Response
+ */
+export const zClassificationsCreateUploadResponse = zUploadOut;
+
+export const zClassificationsListHeaders = z.object({
+    'x-org-id': z.uuid().nullish()
+});
+
+export const zClassificationsListQuery = z.object({
+    limit: z.int().gte(1).lte(200).optional().default(50),
+    status: zClassificationStatus.nullish(),
+    review_status: zReviewStatus.nullish(),
+    verdict: zVerdict.nullish()
+});
+
+/**
+ * Successful Response
+ */
+export const zClassificationsListResponse = zClassificationList;
+
+export const zClassificationsCreateBody = zClassificationCreate;
+
+export const zClassificationsCreateHeaders = z.object({
+    'x-org-id': z.uuid().nullish()
+});
+
+/**
+ * Successful Response
+ */
+export const zClassificationsCreateResponse = zClassificationOut;
+
+export const zClassificationsGetHeaders = z.object({
+    'x-org-id': z.uuid().nullish()
+});
+
+export const zClassificationsGetPath = z.object({
+    classification_id: z.uuid()
+});
+
+/**
+ * Successful Response
+ */
+export const zClassificationsGetResponse = zClassificationOut;
 
 export const zJobsGetHeaders = z.object({
     'x-org-id': z.uuid().nullish()
