@@ -21,6 +21,10 @@ export type ClassificationCreate = {
      * Filename
      */
     filename: string;
+    /**
+     * Question Label
+     */
+    question_label?: string;
 };
 
 /**
@@ -61,6 +65,11 @@ export type ClassificationOut = {
      * Submitted By Name
      */
     submitted_by_name: string;
+    /**
+     * Question Label
+     */
+    question_label: string;
+    verdict_labels: VerdictLabels;
     status: ClassificationStatus;
     review_status: ReviewStatus;
     verdict: Verdict | null;
@@ -395,7 +404,21 @@ export type ValidationError = {
 /**
  * Verdict
  */
-export type Verdict = 'hot_dog' | 'not_hot_dog';
+export type Verdict = 'match' | 'no_match';
+
+/**
+ * VerdictLabels
+ */
+export type VerdictLabels = {
+    /**
+     * Match
+     */
+    match: string;
+    /**
+     * No Match
+     */
+    no_match: string;
+};
 
 export type HealthHealthData = {
     body?: never;

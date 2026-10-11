@@ -55,12 +55,12 @@ async def _work(ctx: dict[str, Any], job: Job, session: AsyncSession) -> dict[st
     if row.verdict is not None:
         _log(row, "already classified")
         return {"outcome": "already_classified"}
-    row.status = ClassificationStatus.processing
-    row.job_id = job.id
-    await session.commit()
-    _log(row, "processing")
     row_id = row.id
     try:
+        row.status = ClassificationStatus.processing
+        row.job_id = job.id
+        await session.commit()
+        _log(row, "processing")
         return await _process(ctx, session, repository, row, job)
     except asyncio.CancelledError:
         # arq cancels at job_timeout and at shutdown, and does not run the
@@ -113,14 +113,12 @@ async def _process(
         session, repository, row, sha256, deadline
     )
     if original is not None:
+        # The model result only. A review of the original stays with it.
         row.verdict = original.verdict
         row.confidence = original.confidence
         row.observations = original.observations
         row.thumbnail_key = original.thumbnail_key
-        row.review_status = original.review_status
-        row.final_verdict = original.final_verdict
-        row.reviewed_by = original.reviewed_by
-        row.reviewed_at = original.reviewed_at
+        row.review_status = _review_status(original.confidence, settings)
         row.duplicate_of = original.id
         row.image_sha256 = sha256
         row.cost_usd = Decimal(0)
@@ -148,6 +146,7 @@ async def _process(
             row.submitted_by,
             row.id,
             model_input,
+            question_label=row.question_label,
             settings=settings,
         )
     except InputTooLargeError:
@@ -159,21 +158,26 @@ async def _process(
     row.latency_ms = int((time.perf_counter() - clock) * 1000)
     row.cost_usd = outcome.cost_usd
     row.llm_call_id = outcome.llm_call_id
-    row.review_status = (
-        ReviewStatus.pending
-        if result.confidence < settings.CLASSIFY_REVIEW_THRESHOLD
-        else ReviewStatus.not_required
-    )
+    row.review_status = _review_status(result.confidence, settings)
     row.status = ClassificationStatus.completed
     await session.commit()
     _log(
         row,
         "classified",
+        question_label=row.question_label,
         verdict=row.verdict,
         confidence=result.confidence,
         review_status=row.review_status,
     )
     return {"outcome": "classified", "verdict": row.verdict}
+
+
+def _review_status(
+    confidence: Decimal | float | None, settings: Settings
+) -> ReviewStatus:
+    if confidence is not None and confidence < settings.CLASSIFY_REVIEW_THRESHOLD:
+        return ReviewStatus.pending
+    return ReviewStatus.not_required
 
 
 async def _own_hash_or_find_original(
@@ -185,13 +189,13 @@ async def _own_hash_or_find_original(
 ) -> Classification | None:
     """Take the hash for this row, or return the completed row that owns it.
 
-    The partial unique index admits one owner per hash and org. While
+    The partial unique index admits one owner per hash, question, and org. While
     another job owns the hash, this one waits for it to complete, then
     copies it. A failed owner releases the hash.
     """
     org_id = row.org_id
     while True:
-        original = await repository.find_duplicate(org_id, sha256)
+        original = await repository.find_duplicate(org_id, sha256, row.question_label)
         if original is not None:
             return original
         row.image_sha256 = sha256

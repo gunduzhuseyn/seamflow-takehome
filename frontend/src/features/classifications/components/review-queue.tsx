@@ -78,7 +78,9 @@ export function ReviewQueue() {
                       {item.filename}
                     </TableCell>
                     <TableCell>{item.submitted_by_name}</TableCell>
-                    <TableCell>{verdictLabel(item.verdict)}</TableCell>
+                    <TableCell>
+                      {verdictLabel(item.verdict, item.verdict_labels)}
+                    </TableCell>
                     <TableCell>{percent(item.confidence)}</TableCell>
                     <TableCell className="max-w-72 text-xs text-muted-foreground">
                       {item.observations}

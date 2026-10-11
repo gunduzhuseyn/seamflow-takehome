@@ -1,4 +1,4 @@
-import type { ReviewStatus, Verdict } from "./api";
+import type { ReviewStatus, Verdict, VerdictLabels } from "./api";
 
 export const money = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -12,9 +12,10 @@ const dateTime = new Intl.DateTimeFormat("en-US", {
   timeStyle: "short",
 });
 
-export const VERDICT_LABEL: Record<Verdict, string> = {
-  hot_dog: "Hot Dog",
-  not_hot_dog: "Not Hot Dog",
+/** The generic names of the verdict values, for filters. A row has its own. */
+export const VERDICT_LABEL: VerdictLabels = {
+  match: "Match",
+  no_match: "No match",
 };
 
 export const REVIEW_STATUS_LABEL: Record<ReviewStatus, string> = {
@@ -23,12 +24,15 @@ export const REVIEW_STATUS_LABEL: Record<ReviewStatus, string> = {
   reviewed: "Reviewed",
 };
 
-export function verdictLabel(verdict: Verdict | null): string {
-  return verdict === null ? "—" : VERDICT_LABEL[verdict];
+export function verdictLabel(
+  verdict: Verdict | null,
+  labels: VerdictLabels,
+): string {
+  return verdict === null ? "—" : labels[verdict];
 }
 
 export function oppositeVerdict(verdict: Verdict): Verdict {
-  return verdict === "hot_dog" ? "not_hot_dog" : "hot_dog";
+  return verdict === "match" ? "no_match" : "match";
 }
 
 /** 0.93 becomes "93%". */

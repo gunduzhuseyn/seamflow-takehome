@@ -30,7 +30,13 @@ PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 PROMPT_NAME = "classify"
 TOOL_NAME = "record_verdict"
 TOOL_DESCRIPTION = "Record the verdict for the image."
-USER_TEXT = "Classify the attached image with the record_verdict tool."
+# The question goes in the user turn as data, in tags the system prompt
+# names. The system prompt itself is fixed.
+USER_TEXT = (
+    "<subject>{question_label}</subject>\n"
+    "Decide whether the attached image shows the subject. "
+    "Answer with the record_verdict tool."
+)
 
 
 @dataclass(frozen=True)
@@ -51,6 +57,7 @@ async def classify_image(
     subject_id: uuid.UUID,
     jpeg_bytes: bytes,
     *,
+    question_label: str,
     settings: Settings,
 ) -> ClassifyOutcome:
     check_input_limit(settings.LLM_MAX_IMAGE_BYTES, jpeg_bytes)
@@ -59,7 +66,7 @@ async def classify_image(
         model=settings.LLM_MODEL,
         max_output_tokens=settings.LLM_MAX_OUTPUT_TOKENS,
         system=prompt.text,
-        user=USER_TEXT,
+        user=USER_TEXT.format(question_label=question_label),
         tool_name=TOOL_NAME,
         tool_description=TOOL_DESCRIPTION,
         tool_schema=tool_schema(),

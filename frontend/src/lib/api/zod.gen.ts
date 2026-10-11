@@ -17,7 +17,8 @@ export const zCallStatus = z.enum([
  */
 export const zClassificationCreate = z.object({
     key: z.string().min(1).max(512),
-    filename: z.string().min(1).max(255)
+    filename: z.string().min(1).max(255),
+    question_label: z.string().optional().default('hot dog')
 });
 
 /**
@@ -183,7 +184,15 @@ export const zHttpValidationError = z.object({
 /**
  * Verdict
  */
-export const zVerdict = z.enum(['hot_dog', 'not_hot_dog']);
+export const zVerdict = z.enum(['match', 'no_match']);
+
+/**
+ * VerdictLabels
+ */
+export const zVerdictLabels = z.object({
+    match: z.string(),
+    no_match: z.string()
+});
 
 /**
  * ClassificationOut
@@ -194,6 +203,8 @@ export const zClassificationOut = z.object({
     updated_at: z.iso.datetime(),
     filename: z.string(),
     submitted_by_name: z.string(),
+    question_label: z.string(),
+    verdict_labels: zVerdictLabels,
     status: zClassificationStatus,
     review_status: zReviewStatus,
     verdict: zVerdict.nullable(),

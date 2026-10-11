@@ -72,13 +72,17 @@ export function ClassificationCard({
           </p>
         )}
 
+        <p className="text-xs text-muted-foreground">
+          Is this a {item.question_label}?
+        </p>
+
         {verdict !== null && (
           <div className="flex items-center gap-2">
             <span className="text-xl font-semibold">
-              {VERDICT_LABEL[verdict]}
+              {item.verdict_labels[verdict]}
             </span>
-            <Badge variant={verdict === "hot_dog" ? "success" : "slate"}>
-              {verdict === "hot_dog" ? "Hot dog" : "Not hot dog"}
+            <Badge variant={verdict === "match" ? "success" : "slate"}>
+              {VERDICT_LABEL[verdict]}
             </Badge>
           </div>
         )}
@@ -152,7 +156,7 @@ export function ClassificationCard({
         )}
         {item.review_status === "reviewed" && item.final_verdict !== null && (
           <p className="text-xs text-muted-foreground">
-            Final verdict: {VERDICT_LABEL[item.final_verdict]}
+            Final verdict: {item.verdict_labels[item.final_verdict]}
           </p>
         )}
       </CardContent>

@@ -3,7 +3,7 @@
   {
     "type": "tool_input",
     "input": {
-      "verdict": "hot_dog",
+      "verdict": "match",
       "confidence": 0.97,
       "observations": "A grilled sausage in a split bun with mustard on a paper tray."
     }

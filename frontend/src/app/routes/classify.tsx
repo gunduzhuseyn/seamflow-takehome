@@ -1,14 +1,19 @@
 import { PageHeader } from "@/components/page-header";
 import { ClassifyPanel } from "@/features/classifications/components/classify-panel";
+import { useQuestionLabel } from "@/features/classifications/question-label";
 
 export function ClassifyRoute() {
+  const [questionLabel, setQuestionLabel] = useQuestionLabel();
   return (
     <>
       <PageHeader
         title="Classify"
-        description="Drop images to get a verdict. Results update while the model works."
+        description={`Current check: is this a ${questionLabel}?`}
       />
-      <ClassifyPanel />
+      <ClassifyPanel
+        questionLabel={questionLabel}
+        onQuestionLabelChange={setQuestionLabel}
+      />
     </>
   );
 }

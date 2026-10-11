@@ -35,14 +35,14 @@ describe("ReviewQueue", () => {
   it("confirms or overrides a row and removes it from the table", async () => {
     const burger = completedRow({
       filename: "burger.png",
-      verdict: "not_hot_dog",
+      verdict: "no_match",
       confidence: 0.61,
       review_status: "pending",
       observations: "A round patty between two buns.",
     });
     const cornDog = completedRow({
       filename: "corndog.jpg",
-      verdict: "not_hot_dog",
+      verdict: "no_match",
       confidence: 0.55,
       review_status: "pending",
     });
@@ -68,7 +68,7 @@ describe("ReviewQueue", () => {
       expect(screen.queryByText("burger.png")).not.toBeInTheDocument();
     });
     expect(classificationStore.reviews).toEqual([
-      { id: burger.id, body: { final_verdict: "not_hot_dog" } },
+      { id: burger.id, body: { final_verdict: "no_match" } },
     ]);
 
     const cornDogRow = screen.getByText("corndog.jpg").closest("tr")!;
@@ -80,7 +80,7 @@ describe("ReviewQueue", () => {
     ).toBeInTheDocument();
     expect(classificationStore.reviews[1]).toEqual({
       id: cornDog.id,
-      body: { final_verdict: "hot_dog" },
+      body: { final_verdict: "match" },
     });
     // The list refetched after each review.
     expect(classificationStore.listRequests.length).toBeGreaterThanOrEqual(3);
