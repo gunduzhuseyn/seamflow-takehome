@@ -48,7 +48,9 @@ export function DropZone({ onFiles, disabled = false }: DropZoneProps) {
     >
       <span className="font-medium">Drop images here or click to choose</span>
       <span className="mt-1 text-xs text-muted-foreground">
-        JPEG, PNG, WebP, or GIF. Up to 10 MB each. Several at once is fine.
+        {disabled
+          ? "Uploads are off until the question above is valid."
+          : "JPEG, PNG, WebP, or GIF. Up to 10 MB each. Several at once is fine."}
       </span>
       <input
         id={inputId}

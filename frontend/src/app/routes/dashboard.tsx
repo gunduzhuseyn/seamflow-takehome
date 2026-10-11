@@ -6,7 +6,7 @@ export function DashboardRoute() {
     <>
       <PageHeader
         title="Dashboard"
-        description="Totals, match ratio, latency, spend, and override rate."
+        description="Organization-wide totals: volume, match ratio, pending review, override rate, latency, and spend."
       />
       <MetricsTiles />
     </>

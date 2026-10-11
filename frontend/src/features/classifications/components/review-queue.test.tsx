@@ -24,9 +24,7 @@ describe("ReviewQueue", () => {
 
     renderWithProviders(<ReviewQueue />);
 
-    expect(
-      await screen.findByText("Nothing waiting for review"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Nothing is pending/)).toBeInTheDocument();
     expect(classificationStore.listRequests[0]).toContain(
       "review_status=pending",
     );
@@ -75,9 +73,7 @@ describe("ReviewQueue", () => {
     fireEvent.click(
       within(cornDogRow).getByRole("button", { name: "Override" }),
     );
-    expect(
-      await screen.findByText("Nothing waiting for review"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Nothing is pending/)).toBeInTheDocument();
     expect(classificationStore.reviews[1]).toEqual({
       id: cornDog.id,
       body: { final_verdict: "match" },

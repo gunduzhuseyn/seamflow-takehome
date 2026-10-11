@@ -98,7 +98,7 @@ describe("routes", () => {
       await screen.findByRole("heading", { name: "Classify" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Current check: is this a hot dog?"),
+      screen.getByText(/current check: is this a hot dog\?/),
     ).toBeInTheDocument();
     expect(screen.getByText("SeeFood Enterprise")).toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Main" });
