@@ -49,6 +49,10 @@ describe("HistoryTable", () => {
 
     const burgerRow = (await screen.findByText("burger.png")).closest("tr")!;
     expect(burgerRow).toHaveTextContent("Ada Lovelace");
+    expect(burgerRow).toHaveTextContent("hot dog");
+    expect(
+      screen.getByRole("columnheader", { name: "Question" }),
+    ).toBeInTheDocument();
     expect(burgerRow).toHaveTextContent("Not Hot Dog");
     expect(burgerRow).toHaveTextContent("Hot Dog");
     expect(burgerRow).toHaveTextContent("61%");

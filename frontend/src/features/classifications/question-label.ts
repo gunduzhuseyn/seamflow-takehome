@@ -6,18 +6,35 @@ const STORAGE_KEY = "seefood.question-label";
 
 /** Mirrors the API check: 2 to 60 letters, digits, spaces, apostrophes, hyphens. */
 export const QUESTION_LABEL_PATTERN = /^[a-z0-9][a-z0-9 '-]{1,59}$/;
+/** Mirrors the API list. The question reaches the model, so these never pass. */
+export const QUESTION_LABEL_BANNED_WORDS = [
+  "ignore",
+  "instruction",
+  "system",
+  "assistant",
+  "prompt",
+] as const;
 export const QUESTION_LABEL_HINT =
-  "Use 2 to 60 letters, digits, spaces, apostrophes, or hyphens.";
+  "Use 2 to 60 letters, digits, spaces, apostrophes, or hyphens. " +
+  `Not allowed: ${QUESTION_LABEL_BANNED_WORDS.join(", ")}.`;
 
 /** Trimmed and lower-cased, as the API stores it. */
 export function normalizeQuestionLabel(raw: string): string {
   return raw.trim().toLowerCase();
 }
 
+/** True when the API accepts the normalized label. */
+export function isValidQuestionLabel(label: string): boolean {
+  return (
+    QUESTION_LABEL_PATTERN.test(label) &&
+    !QUESTION_LABEL_BANNED_WORDS.some((word) => label.includes(word))
+  );
+}
+
 function read(): string {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored !== null && QUESTION_LABEL_PATTERN.test(stored)) {
+    if (stored !== null && isValidQuestionLabel(stored)) {
       return stored;
     }
   } catch {

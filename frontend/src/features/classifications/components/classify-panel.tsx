@@ -15,9 +15,9 @@ import {
 } from "../api";
 import { ClassificationCard } from "./classification-card";
 import {
+  isValidQuestionLabel,
   normalizeQuestionLabel,
   QUESTION_LABEL_HINT,
-  QUESTION_LABEL_PATTERN,
 } from "../question-label";
 import { screenFiles } from "../screen-files";
 import { DropZone } from "./drop-zone";
@@ -49,7 +49,7 @@ export function ClassifyPanel({
   const questionHintId = useId();
   // What the input shows. The label updates only when this is valid.
   const [questionDraft, setQuestionDraft] = useState(questionLabel);
-  const questionValid = QUESTION_LABEL_PATTERN.test(
+  const questionValid = isValidQuestionLabel(
     normalizeQuestionLabel(questionDraft),
   );
   const [errors, setErrors] = useState<string[]>([]);
@@ -139,7 +139,7 @@ export function ClassifyPanel({
               const draft = event.target.value;
               setQuestionDraft(draft);
               const next = normalizeQuestionLabel(draft);
-              if (QUESTION_LABEL_PATTERN.test(next)) {
+              if (isValidQuestionLabel(next)) {
                 onQuestionLabelChange(next);
               }
             }}
@@ -159,7 +159,7 @@ export function ClassifyPanel({
             No results yet. Drop an image to get the first verdict.
           </p>
         )}
-        <DropZone onFiles={handleFiles} />
+        <DropZone onFiles={handleFiles} disabled={!questionValid} />
         {uploading > 0 && (
           <p role="status" className="text-xs text-muted-foreground">
             {`Uploading ${uploading} ${uploading === 1 ? "file" : "files"}…`}

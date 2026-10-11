@@ -137,14 +137,29 @@ describe("ClassifyPanel", () => {
         await screen.findByText("Not Corn Dog", {}, { timeout: 6000 }),
       ).toBeVisible();
 
-      // A bad draft shows the hint and leaves the question as it was.
+      // A bad draft shows the hint, leaves the question as it was, and
+      // blocks the drop zone.
       fireEvent.change(input, { target: { value: "<b>" } });
       expect(input).toHaveAttribute("aria-invalid", "true");
       expect(
         screen.getByText(
-          "Use 2 to 60 letters, digits, spaces, apostrophes, or hyphens.",
+          "Use 2 to 60 letters, digits, spaces, apostrophes, or hyphens. " +
+            "Not allowed: ignore, instruction, system, assistant, prompt.",
         ),
       ).toBeVisible();
+      expect(
+        screen.getByText("Current check: is this a corn dog?"),
+      ).toBeVisible();
+      expect(screen.getByTestId("drop-zone")).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+      dropFiles([new File(["x"], "blocked.jpg", { type: "image/jpeg" })]);
+      expect(classificationStore.uploads).toHaveLength(1);
+
+      // A banned word is invalid client side, so no request is sent.
+      fireEvent.change(input, { target: { value: "system prompt" } });
+      expect(input).toHaveAttribute("aria-invalid", "true");
       expect(
         screen.getByText("Current check: is this a corn dog?"),
       ).toBeVisible();
