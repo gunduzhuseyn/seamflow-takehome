@@ -1,38 +1,108 @@
 # SeeFood Enterprise
 
-SeeFood Enterprise classifies images as "Hot Dog" or "Not Hot Dog" for teams.
-A user signs in, drops one or more images, and reads a verdict with a confidence score.
-The browser uploads each image straight to object storage. A worker runs the vision
-model and writes the result. Verdicts below the confidence threshold go to a review
-queue, where a team member confirms or overrides them. History supports filters and
-CSV export. The dashboard shows totals, hot dog ratio, latency, spend, and override rate.
+SeeFood Enterprise is a visual yes/no check platform for teams. The default check
+is "Is this a hot dog?". A team member changes the question label to run any other
+check. Each image gets a definitive verdict with a confidence score, and uncertain
+results wait in a review queue.
 
-Status: template imported. Sign-in, tenancy, jobs, and the LLM slice work. Classification comes in later units.
+Live app: <https://seamflow-takehome.gunduzhuseyn.workers.dev>. Built in three hours
+as a timed take-home. The sign-in details are in the submission email.
 
 ## AI use
 
 This project was built with Claude Code and Codex. They acted as conductor,
 implementers, and reviewers. The human made the product and priority decisions.
+Requirements, plan, and session prompts are in `docs/ai_docs/`.
 
-## Try it
+## Demo script
 
-- Open <https://seamflow-takehome.gunduzhuseyn.workers.dev>.
-- A seed login exists with the `admin` role in the `Demo` organization.
-  The owner shares it with you directly. It is never in the repository.
-- When Clerk asks the seed login for an email code, enter `424242`.
-- Sign-up also works. A new account gets its own empty organization.
-- To run it on your machine, see [Local development](#local-development).
+1. Sign in with the seeded reviewer account.
+2. Keep the question "hot dog", or type another label.
+3. Drop several images at once. Each card goes from queued to a verdict.
+4. Drop the same image again. The card shows "Duplicate, $0.00" with no model call.
+5. Open Review. Confirm or override a result that fell under the confidence threshold.
+6. Open History, filter by question, status, or verdict, export CSV.
+7. Open Dashboard: totals, match ratio, latency, spend, override rate.
+
+## Features
+
+- Question label per request, default hot dog, validated and treated as data in the prompt.
+- Batch drop with a live status per card: queued, processing, verdict, failed.
+- Verdict, confidence bar, and one sentence on what the model saw.
+- Confidence threshold (0.85) routes uncertain results to a shared review queue.
+- "Was this correct?" on any card records an override.
+- Deduplication by image hash and question label, at zero cost.
+- History with status, verdict, review, and question filters, pagination, CSV export.
+- Dashboard with totals, match ratio, pending review, override rate, latency, spend.
+- Organization tenancy, per-user rate limit, cost and tokens recorded per model call.
+
+## Architecture
+
+```
+Browser ──presigned PUT──▶ Cloudflare R2 (originals, thumbnails)
+   │                            ▲        │
+   │ JSON + Clerk JWT           │ put    │ get
+   ▼                            │        ▼
+FastAPI (Railway) ──enqueue──▶ Redis ──▶ arq worker ──▶ Claude (forced tool)
+   │                                      │
+   └──────────────▶ Postgres ◀────────────┘
+       users, organizations, memberships, classifications, jobs, llm_calls
+```
+
+Classify flow:
+
+1. The browser asks `POST /uploads` for a presigned URL. The API validates type and size and returns a server-generated key.
+2. The browser PUTs the file to R2. The API never carries image bytes.
+3. `POST /classifications` creates a queued row and enqueues a job. It returns 202.
+4. The worker checks the object size, downloads it, and verifies the format by magic bytes.
+5. It hashes the bytes. A match on hash and label in the organization copies the earlier verdict at zero cost.
+6. It writes a 320 px thumbnail to R2 and sends a 1024 px copy to Claude with a forced tool schema.
+7. It stores verdict, confidence, observations, latency, cost, and the model call record.
+8. The browser polls the list every two seconds while any row is in flight.
+
+See [docs/architecture.md](docs/architecture.md) for the component and sequence diagrams.
+
+## Key decisions
+
+- Direct upload to object storage keeps upload bandwidth and memory off the API.
+- An asynchronous worker isolates the model call, gives retries, and scales by replicas.
+- Polling over SSE: simpler, and good enough at this scale.
+- Forced tool output: the model can only answer with a verdict, a confidence, and one sentence.
+- The dedupe key includes the question label, so a new question reruns the model.
+- Thumbnails are presigned URLs, so Postgres stays small.
+- A tested template provided auth, tenancy, migrations, the LLM slice, the worker, CI, and deploy.
+  See `docs/decisions/` for the hosting, auth, database, testing, LLM, jobs, and upload decisions.
+
+## Security notes
+
+- The question label is user input. It must match a strict pattern, may not contain
+  instruction-like words, and goes into the user turn as data, never into the system prompt.
+- The client declares type and size, but the worker re-derives both from the bytes.
+- Object keys are server generated and prefixed by organization. Every query is organization scoped.
+- Per-user rate limit on classification requests. Production refuses placeholder secrets.
+- A bucket lifecycle rule deletes originals after one day.
+
+## Known limitations and next steps
+
+- Clerk runs on a development instance.
+- No retry button on failed cards. The job retries provider errors twice on its own.
+- No organization settings page; the question label is per request and remembered in the browser.
+- No rerun of past images with a new question.
+- The sidebar is not responsive under 768 px.
+- Presigned thumbnail URLs expire after one hour on a page left open without activity.
+- CSV export loads matching rows in memory before streaming.
+- `LLM_RATE_LIMIT_PER_MINUTE` is set on Railway by hand and not preserved in `railway.ts`.
 
 ## Local development
 
 ### Prerequisites
 
-| Tool | Version | Source |
-| --- | --- | --- |
-| Docker with Compose v2 | Docker 29, Compose 5 | tested versions |
-| uv | 0.13 | tested version |
-| Node | 24 | `frontend/.nvmrc` |
-| Python | 3.14 | `backend/.python-version`; uv installs it when missing |
+| Tool                   | Version              | Source                                                 |
+| ---------------------- | -------------------- | ------------------------------------------------------ |
+| Docker with Compose v2 | Docker 29, Compose 5 | tested versions                                        |
+| uv                     | 0.13                 | tested version                                         |
+| Node                   | 24                   | `frontend/.nvmrc`                                      |
+| Python                 | 3.14                 | `backend/.python-version`; uv installs it when missing |
 
 ### Run locally
 
