@@ -28,21 +28,23 @@ export function ProtectedLayout() {
   useClearQueriesOnUserChange();
 
   return (
-    <main className="mx-auto flex min-h-svh max-w-md flex-col justify-center gap-4 p-4">
+    <>
       <ClerkLoading>
-        <p role="status" className="text-center text-muted-foreground">
+        <p role="status" className="p-4 text-center text-muted-foreground">
           Loading…
         </p>
       </ClerkLoading>
       <Show when="signed-out">
-        <div className="flex justify-center">
+        <main className="mx-auto flex min-h-svh max-w-md flex-col justify-center p-4">
           {/* withSignUp keeps sign-up in this app, not on Clerk's hosted page. */}
-          <SignIn routing="hash" withSignUp />
-        </div>
+          <div className="flex justify-center">
+            <SignIn routing="hash" withSignUp />
+          </div>
+        </main>
       </Show>
       <Show when="signed-in">
         <Outlet />
       </Show>
-    </main>
+    </>
   );
 }
