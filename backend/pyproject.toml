@@ -1,0 +1,58 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "API for SeeFood Enterprise"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi==0.143.0",
+    "uvicorn[standard]==0.54.0",
+    "sqlalchemy[asyncio]==2.1.4",
+    "asyncpg==0.32.0",
+    "alembic==1.20.0",
+    "pydantic-settings==2.15.0",
+    "redis==8.1.0",
+    "pyjwt[crypto]==2.15.1",
+    "clerk-backend-api==7.0.0",
+    "anthropic==1.13.0",
+    "arq==0.28.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "httpx==0.28.1",
+    "ruff==0.17.0",
+    "pyright==1.1.414",
+]
+
+[tool.uv]
+# arq 0.28.0 pins redis<6 and is in maintenance mode. The app runs it on
+# the pinned redis; the burst-worker test covers the path.
+override-dependencies = ["redis==8.1.0"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "ASYNC"]
+
+[tool.pyright]
+pythonVersion = "3.14"
+typeCheckingMode = "strict"
+venvPath = "."
+venv = ".venv"
+include = ["app", "tests", "migrations"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+addopts = '-m "not live and not smoke"'
+markers = [
+    "live: calls a real external provider",
+    "smoke: runs against a deployed instance",
+]
