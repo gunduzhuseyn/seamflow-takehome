@@ -3,7 +3,7 @@
   {
     "type": "tool_input",
     "input": {
-      "verdict": "not_hot_dog",
+      "verdict": "no_match",
       "confidence": 0.62,
       "observations": "A battered sausage on a stick, likely a corn dog, with no bun visible."
     }

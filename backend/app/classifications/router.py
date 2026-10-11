@@ -1,12 +1,13 @@
 """Uploads and classifications: presign, create and start the job, list, get."""
 
+import re
 import uuid
 from datetime import datetime
 from typing import Annotated
 
 from arq import ArqRedis
 from fastapi import APIRouter, HTTPException, Query, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import OrgContext
 from app.auth.models import User
 from app.classifications.models import (
+    DEFAULT_QUESTION_LABEL,
     JOB_KIND,
     MAX_UPLOAD_BYTES,
     Classification,
@@ -37,6 +39,14 @@ UPLOAD_URL_EXPIRES_SECONDS = 600
 THUMBNAIL_URL_EXPIRES_SECONDS = 3600
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 200
+# The question is untrusted data that reaches the model. Only a short name
+# of a thing passes: no punctuation, newlines, braces, or angle brackets.
+QUESTION_LABEL_PATTERN = re.compile(r"^[a-z0-9][a-z0-9 '\-]{1,59}$")
+QUESTION_LABEL_BANNED_WORDS = ("ignore", "instruction", "system", "assistant", "prompt")
+QUESTION_LABEL_DETAIL = (
+    "The question is 2 to 60 characters: letters, digits, spaces, "
+    "apostrophes, and hyphens."
+)
 
 
 class UploadCreate(BaseModel):
@@ -54,6 +64,30 @@ class UploadOut(BaseModel):
 class ClassificationCreate(BaseModel):
     key: str = Field(min_length=1, max_length=512)
     filename: str = Field(min_length=1, max_length=255)
+    # "Is this a {question_label}?" Trimmed and lower-cased, then
+    # `check_question_label` runs in the route.
+    question_label: Annotated[
+        str, StringConstraints(strip_whitespace=True, to_lower=True)
+    ] = DEFAULT_QUESTION_LABEL
+
+
+def check_question_label(label: str) -> None:
+    """400 unless the label is a plain name of a thing."""
+    if not QUESTION_LABEL_PATTERN.fullmatch(label) or any(
+        word in label for word in QUESTION_LABEL_BANNED_WORDS
+    ):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=QUESTION_LABEL_DETAIL)
+
+
+class VerdictLabels(BaseModel):
+    match: str
+    no_match: str
+
+
+def verdict_labels(question_label: str) -> VerdictLabels:
+    """The display text of each verdict: "Hot Dog" and "Not Hot Dog" for "hot dog"."""
+    title = question_label.title()
+    return VerdictLabels(match=title, no_match=f"Not {title}")
 
 
 class ClassificationOut(BaseModel):
@@ -62,6 +96,9 @@ class ClassificationOut(BaseModel):
     updated_at: datetime
     filename: str
     submitted_by_name: str
+    question_label: str
+    # The display text of each verdict value, from the question.
+    verdict_labels: VerdictLabels
     status: ClassificationStatus
     review_status: ReviewStatus
     verdict: Verdict | None
@@ -118,6 +155,8 @@ async def _to_out(
                 updated_at=row.updated_at,
                 filename=row.filename,
                 submitted_by_name=names.get(row.submitted_by, ""),
+                question_label=row.question_label,
+                verdict_labels=verdict_labels(row.question_label),
                 status=row.status,
                 review_status=row.review_status,
                 verdict=row.verdict,
@@ -169,6 +208,7 @@ async def create_classification(
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, detail="The key is not an upload of this org."
         )
+    check_question_label(body.question_label)
     settings: Settings = request.app.state.settings
     redis: Redis = request.app.state.redis
     pool: ArqRedis = request.app.state.arq
@@ -179,6 +219,7 @@ async def create_classification(
         submitted_by=context.user.id,
         filename=body.filename,
         original_key=body.key,
+        question_label=body.question_label,
         status=ClassificationStatus.queued,
         review_status=ReviewStatus.not_required,
     )

@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-Verdict = Literal["hot_dog", "not_hot_dog"]
+Verdict = Literal["match", "no_match"]
 
 # Keys a strict tool schema rejects. The model validates them after the call.
 UNSUPPORTED_SCHEMA_KEYS = frozenset({"minimum", "maximum", "minLength", "maxLength"})
@@ -15,7 +15,7 @@ class VisionResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     verdict: Verdict = Field(
-        description="hot_dog when a hot dog is visible, else not_hot_dog."
+        description="match when the asked item is visible, else no_match."
     )
     confidence: float = Field(
         ge=0.0, le=1.0, description="Certainty of the verdict, from 0 to 1."

@@ -8,7 +8,19 @@ import {
 } from "@/testing/handlers";
 import { renderWithProviders } from "@/testing/render";
 
+import { useQuestionLabel } from "../question-label";
 import { ClassifyPanel } from "./classify-panel";
+
+/** The panel as the route mounts it: the hook owns the label. */
+function Panel() {
+  const [label, setLabel] = useQuestionLabel();
+  return (
+    <>
+      <p>Current check: is this a {label}?</p>
+      <ClassifyPanel questionLabel={label} onQuestionLabelChange={setLabel} />
+    </>
+  );
+}
 
 vi.mock("@clerk/react", () => ({
   getToken: vi.fn(() => Promise.resolve(TEST_SESSION_TOKEN)),
@@ -29,10 +41,11 @@ function dropFiles(files: File[]) {
 describe("ClassifyPanel", () => {
   beforeEach(() => {
     classificationStore.reset();
+    localStorage.clear();
   });
 
   it("shows the empty state before any upload", async () => {
-    renderWithProviders(<ClassifyPanel />);
+    renderWithProviders(<Panel />);
 
     expect(
       await screen.findByText(
@@ -45,7 +58,7 @@ describe("ClassifyPanel", () => {
     "uploads two dropped files and shows queued, then completed cards",
     { timeout: 10_000 },
     async () => {
-      renderWithProviders(<ClassifyPanel />);
+      renderWithProviders(<Panel />);
       await screen.findByText(/No results yet/);
 
       const hotDog = new File(["hd"], "hotdog.jpg", { type: "image/jpeg" });
@@ -77,6 +90,11 @@ describe("ClassifyPanel", () => {
         "burger.png",
         "hotdog.jpg",
       ]);
+      expect(classificationStore.rows.map((r) => r.question_label)).toEqual([
+        "hot dog",
+        "hot dog",
+      ]);
+      expect(screen.getAllByText("Is this a hot dog?")).toHaveLength(2);
 
       // The mock flips rows on the second poll, 2 s after the first.
       const poll = { timeout: 6000 };
@@ -93,8 +111,55 @@ describe("ClassifyPanel", () => {
     },
   );
 
+  it(
+    "sends the typed question, keeps it across a remount, and refuses a bad one",
+    { timeout: 10_000 },
+    async () => {
+      const first = renderWithProviders(<Panel />);
+      await screen.findByText(/No results yet/);
+      const input = screen.getByLabelText("Is this a");
+      expect(input).toHaveValue("hot dog");
+      expect(
+        screen.getByText("Current check: is this a hot dog?"),
+      ).toBeVisible();
+
+      fireEvent.change(input, { target: { value: "  Corn Dog " } });
+      expect(
+        screen.getByText("Current check: is this a corn dog?"),
+      ).toBeVisible();
+      dropFiles([new File(["cd"], "corn.jpg", { type: "image/jpeg" })]);
+      await waitFor(() => {
+        expect(classificationStore.rows).toHaveLength(1);
+      });
+      expect(classificationStore.rows[0].question_label).toBe("corn dog");
+      expect(await screen.findByText("Is this a corn dog?")).toBeVisible();
+      expect(
+        await screen.findByText("Not Corn Dog", {}, { timeout: 6000 }),
+      ).toBeVisible();
+
+      // A bad draft shows the hint and leaves the question as it was.
+      fireEvent.change(input, { target: { value: "<b>" } });
+      expect(input).toHaveAttribute("aria-invalid", "true");
+      expect(
+        screen.getByText(
+          "Use 2 to 60 letters, digits, spaces, apostrophes, or hyphens.",
+        ),
+      ).toBeVisible();
+      expect(
+        screen.getByText("Current check: is this a corn dog?"),
+      ).toBeVisible();
+
+      first.unmount();
+      renderWithProviders(<Panel />);
+      expect(screen.getByLabelText("Is this a")).toHaveValue("corn dog");
+      expect(
+        screen.getByText("Current check: is this a corn dog?"),
+      ).toBeVisible();
+    },
+  );
+
   it("rejects a wrong type and an oversized file inline", async () => {
-    renderWithProviders(<ClassifyPanel />);
+    renderWithProviders(<Panel />);
     await screen.findByText(/No results yet/);
 
     const text = new File(["x"], "notes.txt", { type: "text/plain" });
@@ -117,12 +182,12 @@ describe("ClassifyPanel", () => {
       row,
       completedRow({
         filename: "burger.png",
-        verdict: "not_hot_dog",
+        verdict: "no_match",
         confidence: 0.61,
         review_status: "pending",
       }),
     );
-    renderWithProviders(<ClassifyPanel />);
+    renderWithProviders(<Panel />);
 
     // Only the completed, non-pending card asks for feedback.
     expect(await screen.findByText("Was this correct?")).toBeInTheDocument();
@@ -133,7 +198,7 @@ describe("ClassifyPanel", () => {
 
     await waitFor(() => {
       expect(classificationStore.reviews).toEqual([
-        { id: row.id, body: { final_verdict: "not_hot_dog" } },
+        { id: row.id, body: { final_verdict: "no_match" } },
       ]);
     });
     expect(

@@ -46,8 +46,12 @@ class ReviewStatus(StrEnum):
 
 
 class Verdict(StrEnum):
-    hot_dog = "hot_dog"
-    not_hot_dog = "not_hot_dog"
+    match = "match"
+    no_match = "no_match"
+
+
+# The question the model answers when the request names none.
+DEFAULT_QUESTION_LABEL = "hot dog"
 
 
 def _now() -> datetime:
@@ -66,12 +70,14 @@ class Classification(OrgScoped):
         Index("ix_classifications_org_id_created_at", "org_id", "created_at"),
         Index("ix_classifications_org_id_image_sha256", "org_id", "image_sha256"),
         Index("ix_classifications_org_id_review_status", "org_id", "review_status"),
-        # One row owns a hash in an org: the one the model classifies. A
-        # second job on the same image waits for it, then copies it.
+        # One row owns a hash and a question in an org: the one the model
+        # classifies. A second job on the same pair waits for it, then
+        # copies it.
         Index(
             "uq_classifications_hash_owner",
             "org_id",
             "image_sha256",
+            "question_label",
             unique=True,
             postgresql_where=text(
                 "duplicate_of IS NULL AND status IN ('processing', 'completed')"
@@ -94,6 +100,10 @@ class Classification(OrgScoped):
     image_sha256: Mapped[str | None] = mapped_column(Text)
     # 320 px WebP in storage.
     thumbnail_key: Mapped[str | None] = mapped_column(Text)
+    # Trimmed and lower-cased. "Is this a {question_label}?"
+    question_label: Mapped[str] = mapped_column(
+        Text, default=DEFAULT_QUESTION_LABEL, server_default=DEFAULT_QUESTION_LABEL
+    )
     status: Mapped[ClassificationStatus] = mapped_column(
         _enum(ClassificationStatus, "classification_status")
     )
@@ -155,14 +165,15 @@ class ClassificationRepository(Repository[Classification]):
         return rows.all(), total or 0
 
     async def find_duplicate(
-        self, org_id: uuid.UUID, sha256: str
+        self, org_id: uuid.UUID, sha256: str, question_label: str
     ) -> Classification | None:
-        """The earliest completed row with the hash that is not itself a copy."""
+        """The earliest completed row with the hash and the question, not a copy."""
         return await self.session.scalar(
             select(Classification)
             .where(
                 Classification.org_id == org_id,
                 Classification.image_sha256 == sha256,
+                Classification.question_label == question_label,
                 Classification.status == ClassificationStatus.completed,
                 Classification.duplicate_of.is_(None),
             )

@@ -1,7 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { QueryResult } from "@/components/query-result";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 import {
   createClassification,
@@ -12,6 +14,11 @@ import {
   type ClassificationOut,
 } from "../api";
 import { ClassificationCard } from "./classification-card";
+import {
+  normalizeQuestionLabel,
+  QUESTION_LABEL_HINT,
+  QUESTION_LABEL_PATTERN,
+} from "../question-label";
 import { screenFiles } from "../screen-files";
 import { DropZone } from "./drop-zone";
 
@@ -26,9 +33,25 @@ function byNewest(a: ClassificationOut, b: ClassificationOut): number {
   return b.created_at.localeCompare(a.created_at);
 }
 
-/** Drop zone, upload flow, and the results grid. */
-export function ClassifyPanel() {
+type ClassifyPanelProps = {
+  /** The question every new upload asks. Always a valid label. */
+  questionLabel: string;
+  onQuestionLabelChange: (label: string) => void;
+};
+
+/** The question form, drop zone, upload flow, and the results grid. */
+export function ClassifyPanel({
+  questionLabel,
+  onQuestionLabelChange,
+}: ClassifyPanelProps) {
   const queryClient = useQueryClient();
+  const questionId = useId();
+  const questionHintId = useId();
+  // What the input shows. The label updates only when this is valid.
+  const [questionDraft, setQuestionDraft] = useState(questionLabel);
+  const questionValid = QUESTION_LABEL_PATTERN.test(
+    normalizeQuestionLabel(questionDraft),
+  );
   const [errors, setErrors] = useState<string[]>([]);
   const [uploading, setUploading] = useState(0);
   const [previews, setPreviews] = useState<Record<string, string>>({});
@@ -58,6 +81,7 @@ export function ClassifyPanel() {
     const row = await createClassification({
       key: upload.key,
       filename: file.name,
+      question_label: questionLabel,
     });
     const previewUrl = URL.createObjectURL(file);
     objectUrls.current.push(previewUrl);
@@ -98,6 +122,38 @@ export function ClassifyPanel() {
   return (
     <div className="space-y-6">
       <section aria-label="Upload" className="space-y-2">
+        <form
+          aria-label="Question"
+          className="flex flex-wrap items-center gap-2 text-sm"
+          onSubmit={(event) => event.preventDefault()}
+        >
+          <Label htmlFor={questionId}>Is this a</Label>
+          <Input
+            id={questionId}
+            value={questionDraft}
+            maxLength={60}
+            aria-invalid={!questionValid}
+            aria-describedby={questionHintId}
+            className="w-48"
+            onChange={(event) => {
+              const draft = event.target.value;
+              setQuestionDraft(draft);
+              const next = normalizeQuestionLabel(draft);
+              if (QUESTION_LABEL_PATTERN.test(next)) {
+                onQuestionLabelChange(next);
+              }
+            }}
+          />
+          <span aria-hidden="true">?</span>
+          <span
+            id={questionHintId}
+            className={
+              questionValid ? "sr-only" : "basis-full text-xs text-destructive"
+            }
+          >
+            {QUESTION_LABEL_HINT}
+          </span>
+        </form>
         {query.data && isEmpty(query.data) && (
           <p className="text-sm text-muted-foreground">
             No results yet. Drop an image to get the first verdict.

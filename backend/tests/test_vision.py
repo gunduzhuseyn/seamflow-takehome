@@ -40,10 +40,17 @@ async def test_classify_records_one_succeeded_row(
     provider = FakeProvider(fixture="hotdog")
 
     outcome = await classify_image(
-        db_session, provider, org, user, subject_id, JPEG, settings=settings
+        db_session,
+        provider,
+        org,
+        user,
+        subject_id,
+        JPEG,
+        question_label="hot dog",
+        settings=settings,
     )
 
-    assert outcome.result.verdict == "hot_dog"
+    assert outcome.result.verdict == "match"
     assert outcome.result.confidence == 0.97
     assert outcome.cost_usd == Decimal("0.0038")
     assert outcome.latency_ms >= 0
@@ -64,12 +71,38 @@ async def test_classify_records_one_succeeded_row(
     (row,) = await stored_calls(db_session, subject_id)
     assert row["id"] == outcome.llm_call_id
     assert (row["org_id"], row["user_id"]) == (org, user)
-    assert (row["prompt_name"], row["prompt_version"]) == ("classify", 1)
+    assert (row["prompt_name"], row["prompt_version"]) == ("classify", 2)
     assert row["status"] == "succeeded"
     assert (row["input_tokens"], row["output_tokens"]) == (1600, 60)
     assert row["cost_usd"] == Decimal("0.0038")
-    assert row["result"]["verdict"] == "hot_dog"
+    assert row["result"]["verdict"] == "match"
     assert row["finished_at"] >= row["created_at"]
+
+
+async def test_the_question_goes_in_the_user_turn_as_data(
+    db_session: AsyncSession, settings: Settings, owner: Owner
+) -> None:
+    org, user = owner
+    provider = FakeProvider(fixture="hotdog")
+
+    await classify_image(
+        db_session,
+        provider,
+        org,
+        user,
+        uuid.uuid4(),
+        JPEG,
+        question_label="pizza slice",
+        settings=settings,
+    )
+
+    (request,) = provider.requests
+    # The label is data in the user turn, inside the tags, and nowhere else.
+    assert "pizza slice" not in request.system
+    assert "<subject>" in request.system
+    assert request.user.startswith("<subject>pizza slice</subject>\n")
+    assert request.user.count("pizza slice") == 1
+    assert "{" not in request.user
 
 
 async def test_invalid_output_records_a_row_per_attempt_then_raises(
@@ -81,7 +114,14 @@ async def test_invalid_output_records_a_row_per_attempt_then_raises(
 
     with pytest.raises(LLMOutputError):
         await classify_image(
-            db_session, provider, org, user, subject_id, JPEG, settings=settings
+            db_session,
+            provider,
+            org,
+            user,
+            subject_id,
+            JPEG,
+            question_label="hot dog",
+            settings=settings,
         )
 
     rows = await stored_calls(db_session, subject_id)
@@ -99,7 +139,14 @@ async def test_a_second_attempt_that_validates_sums_the_cost(
     provider.queue = ["hotdog_invalid"]
 
     outcome = await classify_image(
-        db_session, provider, org, user, subject_id, JPEG, settings=settings
+        db_session,
+        provider,
+        org,
+        user,
+        subject_id,
+        JPEG,
+        question_label="hot dog",
+        settings=settings,
     )
 
     rows = await stored_calls(db_session, subject_id)
@@ -126,7 +173,14 @@ async def test_a_cancelled_second_attempt_keeps_the_first_row(
 
     with pytest.raises(asyncio.CancelledError):
         await classify_image(
-            db_session, provider, org, user, subject_id, JPEG, settings=settings
+            db_session,
+            provider,
+            org,
+            user,
+            subject_id,
+            JPEG,
+            question_label="hot dog",
+            settings=settings,
         )
 
     rows = await stored_calls(db_session, subject_id)
@@ -143,7 +197,14 @@ async def test_an_input_over_the_byte_cap_is_refused_before_the_call(
 
     with pytest.raises(InputTooLargeError):
         await classify_image(
-            db_session, provider, org, user, subject_id, too_big, settings=settings
+            db_session,
+            provider,
+            org,
+            user,
+            subject_id,
+            too_big,
+            question_label="hot dog",
+            settings=settings,
         )
 
     assert provider.requests == []

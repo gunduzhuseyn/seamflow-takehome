@@ -170,8 +170,12 @@ export function HistoryTable() {
                     {item.filename}
                   </TableCell>
                   <TableCell>{item.submitted_by_name}</TableCell>
-                  <TableCell>{verdictLabel(item.verdict)}</TableCell>
-                  <TableCell>{verdictLabel(item.final_verdict)}</TableCell>
+                  <TableCell>
+                    {verdictLabel(item.verdict, item.verdict_labels)}
+                  </TableCell>
+                  <TableCell>
+                    {verdictLabel(item.final_verdict, item.verdict_labels)}
+                  </TableCell>
                   <TableCell>{percent(item.confidence)}</TableCell>
                   <TableCell>
                     {STATUS_LABEL[item.status]}

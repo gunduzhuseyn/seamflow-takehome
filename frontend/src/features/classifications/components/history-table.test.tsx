@@ -35,8 +35,8 @@ describe("HistoryTable", () => {
       completedRow({ created_at: "2026-10-11T15:00:00Z" }),
       completedRow({
         filename: "burger.png",
-        verdict: "not_hot_dog",
-        final_verdict: "hot_dog",
+        verdict: "no_match",
+        final_verdict: "match",
         confidence: 0.61,
         review_status: "reviewed",
         created_at: "2026-10-11T16:00:00Z",
@@ -59,10 +59,10 @@ describe("HistoryTable", () => {
     expect(lastListQuery().has("verdict")).toBe(false);
 
     fireEvent.change(screen.getByLabelText("Verdict"), {
-      target: { value: "hot_dog" },
+      target: { value: "match" },
     });
     await waitFor(() => {
-      expect(lastListQuery().get("verdict")).toBe("hot_dog");
+      expect(lastListQuery().get("verdict")).toBe("match");
     });
     await waitFor(() => {
       expect(screen.queryByText("burger.png")).not.toBeInTheDocument();
@@ -75,7 +75,7 @@ describe("HistoryTable", () => {
     await waitFor(() => {
       expect(lastListQuery().get("review_status")).toBe("reviewed");
     });
-    expect(lastListQuery().get("verdict")).toBe("hot_dog");
+    expect(lastListQuery().get("verdict")).toBe("match");
     expect(
       await screen.findByText("No classifications match these filters."),
     ).toBeInTheDocument();
@@ -86,7 +86,7 @@ describe("HistoryTable", () => {
     await screen.findByText("burger.png");
 
     fireEvent.change(screen.getByLabelText("Verdict"), {
-      target: { value: "not_hot_dog" },
+      target: { value: "no_match" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
 
@@ -97,7 +97,7 @@ describe("HistoryTable", () => {
     const [request] = classificationStore.exports;
     const url = new URL(request.url);
     expect(url.pathname).toBe("/classifications/export.csv");
-    expect(url.searchParams.get("verdict")).toBe("not_hot_dog");
+    expect(url.searchParams.get("verdict")).toBe("no_match");
     expect(url.searchParams.has("limit")).toBe(false);
     expect(request.authorization).toBe(`Bearer ${TEST_SESSION_TOKEN}`);
     const link = anchorClick.mock.contexts[0] as HTMLAnchorElement;

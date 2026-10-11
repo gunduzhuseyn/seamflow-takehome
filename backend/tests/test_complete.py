@@ -25,7 +25,7 @@ async def test_valid_output_is_parsed_in_one_attempt() -> None:
 
     result = await complete_with_tool(provider, REQUEST, VisionResult)
 
-    assert result.parsed.verdict == "hot_dog"
+    assert result.parsed.verdict == "match"
     assert result.parsed.confidence == 0.97
     assert (result.usage.input_tokens, result.usage.output_tokens) == (1600, 60)
     assert [a.status for a in result.attempts] == [CallStatus.succeeded]
@@ -55,7 +55,7 @@ async def test_valid_output_on_the_second_attempt_succeeds() -> None:
 
     result = await complete_with_tool(provider, REQUEST, VisionResult)
 
-    assert result.parsed.verdict == "hot_dog"
+    assert result.parsed.verdict == "match"
     assert [a.status for a in result.attempts] == [
         CallStatus.invalid_output,
         CallStatus.succeeded,

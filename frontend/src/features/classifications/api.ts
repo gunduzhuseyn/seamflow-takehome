@@ -10,7 +10,10 @@ import { mutationOptions, queryOptions } from "@tanstack/react-query";
 export type ClassificationStatus =
   "queued" | "processing" | "completed" | "failed";
 export type ReviewStatus = "not_required" | "pending" | "reviewed";
-export type Verdict = "hot_dog" | "not_hot_dog";
+export type Verdict = "match" | "no_match";
+
+/** The display text of each verdict value, from the row's question. */
+export type VerdictLabels = Record<Verdict, string>;
 
 export type ClassificationOut = {
   id: string;
@@ -18,6 +21,9 @@ export type ClassificationOut = {
   updated_at: string;
   filename: string;
   submitted_by_name: string;
+  /** "Is this a {question_label}?" Trimmed and lower-cased by the API. */
+  question_label: string;
+  verdict_labels: VerdictLabels;
   status: ClassificationStatus;
   review_status: ReviewStatus;
   verdict: Verdict | null;
@@ -47,6 +53,7 @@ export type UploadOut = {
 export type ClassificationCreate = {
   key: string;
   filename: string;
+  question_label: string;
 };
 
 export type ClassificationList = {

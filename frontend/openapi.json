@@ -620,6 +620,11 @@
             "maxLength": 255,
             "minLength": 1,
             "title": "Filename"
+          },
+          "question_label": {
+            "type": "string",
+            "title": "Question Label",
+            "default": "hot dog"
           }
         },
         "type": "object",
@@ -674,6 +679,13 @@
           "submitted_by_name": {
             "type": "string",
             "title": "Submitted By Name"
+          },
+          "question_label": {
+            "type": "string",
+            "title": "Question Label"
+          },
+          "verdict_labels": {
+            "$ref": "#/components/schemas/VerdictLabels"
           },
           "status": {
             "$ref": "#/components/schemas/ClassificationStatus"
@@ -792,6 +804,8 @@
           "updated_at",
           "filename",
           "submitted_by_name",
+          "question_label",
+          "verdict_labels",
           "status",
           "review_status",
           "verdict",
@@ -1322,10 +1336,28 @@
       "Verdict": {
         "type": "string",
         "enum": [
-          "hot_dog",
-          "not_hot_dog"
+          "match",
+          "no_match"
         ],
         "title": "Verdict"
+      },
+      "VerdictLabels": {
+        "properties": {
+          "match": {
+            "type": "string",
+            "title": "Match"
+          },
+          "no_match": {
+            "type": "string",
+            "title": "No Match"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match",
+          "no_match"
+        ],
+        "title": "VerdictLabels"
       }
     },
     "securitySchemes": {

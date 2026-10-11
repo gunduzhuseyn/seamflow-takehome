@@ -76,9 +76,11 @@ export function completedRow(
     updated_at: now,
     filename: "hotdog.jpg",
     submitted_by_name: "Ada Lovelace",
+    question_label: "hot dog",
+    verdict_labels: { match: "Hot Dog", no_match: "Not Hot Dog" },
     status: "completed",
     review_status: "not_required",
-    verdict: "hot_dog",
+    verdict: "match",
     confidence: 0.93,
     observations: "A sausage in a split bun with mustard.",
     final_verdict: null,
@@ -149,7 +151,7 @@ const unauthorized = () =>
 function complete(row: ClassificationOut): void {
   const hotDog = /hot.?dog/i.test(row.filename);
   row.status = "completed";
-  row.verdict = hotDog ? "hot_dog" : "not_hot_dog";
+  row.verdict = hotDog ? "match" : "no_match";
   row.confidence = hotDog ? 0.93 : 0.61;
   row.review_status = hotDog ? "not_required" : "pending";
   row.observations = hotDog
@@ -195,12 +197,16 @@ const classificationHandlers = [
     }
     const body = (await request.json()) as ClassificationCreate;
     const now = new Date().toISOString();
+    const label = body.question_label;
+    const title = label.replace(/\b[a-z]/g, (c) => c.toUpperCase());
     const row: ClassificationOut = {
       id: crypto.randomUUID(),
       created_at: now,
       updated_at: now,
       filename: body.filename,
       submitted_by_name: "Ada Lovelace",
+      question_label: label,
+      verdict_labels: { match: title, no_match: `Not ${title}` },
       status: "queued",
       review_status: "not_required",
       verdict: null,
