@@ -1,7 +1,11 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { classificationStore, TEST_SESSION_TOKEN } from "@/testing/handlers";
+import {
+  classificationStore,
+  completedRow,
+  TEST_SESSION_TOKEN,
+} from "@/testing/handlers";
 import { renderWithProviders } from "@/testing/render";
 
 import { ClassifyPanel } from "./classify-panel";
@@ -105,5 +109,38 @@ describe("ClassifyPanel", () => {
     );
     expect(alert).toHaveTextContent("big.jpg: larger than 10 MB.");
     expect(classificationStore.uploads).toHaveLength(0);
+  });
+
+  it("sends card feedback to the review endpoint and shows the final verdict", async () => {
+    const row = completedRow();
+    classificationStore.rows.push(
+      row,
+      completedRow({
+        filename: "burger.png",
+        verdict: "not_hot_dog",
+        confidence: 0.61,
+        review_status: "pending",
+      }),
+    );
+    renderWithProviders(<ClassifyPanel />);
+
+    // Only the completed, non-pending card asks for feedback.
+    expect(await screen.findByText("Was this correct?")).toBeInTheDocument();
+    expect(screen.getAllByText("Was this correct?")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Yes" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "No" }));
+
+    await waitFor(() => {
+      expect(classificationStore.reviews).toEqual([
+        { id: row.id, body: { final_verdict: "not_hot_dog" } },
+      ]);
+    });
+    expect(
+      await screen.findByText("Final verdict: Not Hot Dog"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Was this correct?")).not.toBeInTheDocument();
+    expect(screen.queryByText("Hot Dog")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Not Hot Dog")).toHaveLength(2);
   });
 });

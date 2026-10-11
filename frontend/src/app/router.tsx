@@ -2,12 +2,10 @@ import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
 
 import { AppShell } from "./routes/app-shell";
 import { ClassifyRoute } from "./routes/classify";
-import {
-  DashboardRoute,
-  HistoryRoute,
-  ReviewRoute,
-} from "./routes/placeholders";
+import { DashboardRoute } from "./routes/dashboard";
+import { HistoryRoute } from "./routes/history";
 import { ProtectedLayout } from "./routes/protected-layout";
+import { ReviewRoute } from "./routes/review";
 
 export const routes: RouteObject[] = [
   {

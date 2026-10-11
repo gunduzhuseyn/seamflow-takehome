@@ -1,5 +1,5 @@
 import { getToken } from "@clerk/react";
-import { queryOptions } from "@tanstack/react-query";
+import { mutationOptions, queryOptions } from "@tanstack/react-query";
 
 /**
  * Hand-written client for the classifications contract in docs/ai_docs/plan.md.
@@ -61,6 +61,25 @@ export type ClassificationListQuery = {
   verdict?: Verdict;
 };
 
+export type ReviewCreate = {
+  final_verdict: Verdict;
+};
+
+export type MetricsOut = {
+  total: number;
+  completed: number;
+  hot_dog: number;
+  not_hot_dog: number;
+  pending_review: number;
+  reviewed: number;
+  overrides: number;
+  /** Fraction 0 to 1. */
+  override_rate: number;
+  avg_latency_ms: number | null;
+  total_cost_usd: number;
+  deduplicated: number;
+};
+
 export class ApiError extends Error {
   status: number;
 
@@ -89,10 +108,10 @@ async function readDetail(response: Response): Promise<string> {
   return fallback;
 }
 
-async function apiFetch<T>(
+async function apiRequest(
   path: string,
-  init: { method: "GET" | "POST"; body?: unknown },
-): Promise<T> {
+  init: { method: "GET" | "POST"; body?: unknown; accept?: string },
+): Promise<Response> {
   const token = await getToken();
   const headers: Record<string, string> = {};
   if (token) {
@@ -100,6 +119,9 @@ async function apiFetch<T>(
   }
   if (init.body !== undefined) {
     headers["Content-Type"] = "application/json";
+  }
+  if (init.accept !== undefined) {
+    headers.Accept = init.accept;
   }
   const response = await fetch(`${import.meta.env.VITE_API_URL}${path}`, {
     method: init.method,
@@ -109,7 +131,25 @@ async function apiFetch<T>(
   if (!response.ok) {
     throw new ApiError(response.status, await readDetail(response));
   }
+  return response;
+}
+
+async function apiFetch<T>(
+  path: string,
+  init: { method: "GET" | "POST"; body?: unknown },
+): Promise<T> {
+  const response = await apiRequest(path, init);
   return (await response.json()) as T;
+}
+
+function toSearch(query: ClassificationListQuery): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined) {
+      params.set(key, String(value));
+    }
+  }
+  return params.size > 0 ? `?${params.toString()}` : "";
 }
 
 /** POST /uploads: ask for a presigned PUT URL. */
@@ -146,16 +186,36 @@ export function createClassification(
 export function listClassifications(
   query: ClassificationListQuery = {},
 ): Promise<ClassificationList> {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(query)) {
-    if (value !== undefined) {
-      params.set(key, String(value));
-    }
-  }
-  const search = params.size > 0 ? `?${params.toString()}` : "";
-  return apiFetch<ClassificationList>(`/classifications${search}`, {
+  return apiFetch<ClassificationList>(`/classifications${toSearch(query)}`, {
     method: "GET",
   });
+}
+
+/** POST /classifications/{id}/review: confirm or override a verdict. */
+export function reviewClassification(
+  id: string,
+  body: ReviewCreate,
+): Promise<ClassificationOut> {
+  return apiFetch<ClassificationOut>(`/classifications/${id}/review`, {
+    method: "POST",
+    body,
+  });
+}
+
+/** GET /classifications/metrics: the dashboard numbers. */
+export function getMetrics(): Promise<MetricsOut> {
+  return apiFetch<MetricsOut>("/classifications/metrics", { method: "GET" });
+}
+
+/** GET /classifications/export.csv with the same filters as the list. */
+export async function exportClassificationsCsv(
+  query: ClassificationListQuery = {},
+): Promise<Blob> {
+  const response = await apiRequest(
+    `/classifications/export.csv${toSearch(query)}`,
+    { method: "GET", accept: "text/csv" },
+  );
+  return response.blob();
 }
 
 export const classificationsQueryKey = (query: ClassificationListQuery = {}) =>
@@ -167,4 +227,19 @@ export const listClassificationsOptions = (
   queryOptions({
     queryKey: classificationsQueryKey(query),
     queryFn: () => listClassifications(query),
+  });
+
+export const metricsQueryKey = ["classification-metrics"] as const;
+
+export const metricsOptions = () =>
+  queryOptions({
+    queryKey: metricsQueryKey,
+    queryFn: getMetrics,
+  });
+
+export const reviewClassificationMutationOptions = () =>
+  mutationOptions({
+    mutationKey: ["classifications", "review"],
+    mutationFn: ({ id, ...body }: ReviewCreate & { id: string }) =>
+      reviewClassification(id, body),
   });
