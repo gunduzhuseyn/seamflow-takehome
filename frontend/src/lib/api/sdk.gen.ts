@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AuthMeData, AuthMeErrors, AuthMeResponses, ClassificationsCreateData, ClassificationsCreateErrors, ClassificationsCreateResponses, ClassificationsCreateUploadData, ClassificationsCreateUploadErrors, ClassificationsCreateUploadResponses, ClassificationsExportCsvData, ClassificationsExportCsvErrors, ClassificationsExportCsvResponses, ClassificationsGetData, ClassificationsGetErrors, ClassificationsGetResponses, ClassificationsListData, ClassificationsListErrors, ClassificationsListResponses, ClassificationsMetricsData, ClassificationsMetricsErrors, ClassificationsMetricsResponses, ClassificationsReviewData, ClassificationsReviewErrors, ClassificationsReviewResponses, HealthHealthData, HealthHealthErrors, HealthHealthResponses, JobsGetData, JobsGetErrors, JobsGetResponses, LlmCallsGetData, LlmCallsGetErrors, LlmCallsGetResponses, OrgsRenameCurrentData, OrgsRenameCurrentErrors, OrgsRenameCurrentResponses } from './types.gen';
+import type { AuthMeData, AuthMeErrors, AuthMeResponses, ClassificationsCreateData, ClassificationsCreateErrors, ClassificationsCreateResponses, ClassificationsCreateUploadData, ClassificationsCreateUploadErrors, ClassificationsCreateUploadResponses, ClassificationsExportCsvData, ClassificationsExportCsvErrors, ClassificationsExportCsvResponses, ClassificationsGetData, ClassificationsGetErrors, ClassificationsGetResponses, ClassificationsLabelsData, ClassificationsLabelsErrors, ClassificationsLabelsResponses, ClassificationsListData, ClassificationsListErrors, ClassificationsListResponses, ClassificationsMetricsData, ClassificationsMetricsErrors, ClassificationsMetricsResponses, ClassificationsReviewData, ClassificationsReviewErrors, ClassificationsReviewResponses, HealthHealthData, HealthHealthErrors, HealthHealthResponses, JobsGetData, JobsGetErrors, JobsGetResponses, LlmCallsGetData, LlmCallsGetErrors, LlmCallsGetResponses, OrgsRenameCurrentData, OrgsRenameCurrentErrors, OrgsRenameCurrentResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -86,6 +86,17 @@ export const classificationsCreate = <ThrowOnError extends boolean = false>(opti
 export const classificationsMetrics = <ThrowOnError extends boolean = false>(options?: Options<ClassificationsMetricsData, ThrowOnError>): RequestResult<ClassificationsMetricsResponses, ClassificationsMetricsErrors, ThrowOnError> => (options?.client ?? client).get<ClassificationsMetricsResponses, ClassificationsMetricsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/classifications/metrics',
+    ...options
+});
+
+/**
+ * Labels
+ *
+ * The distinct questions of the caller's org, most recently used first.
+ */
+export const classificationsLabels = <ThrowOnError extends boolean = false>(options?: Options<ClassificationsLabelsData, ThrowOnError>): RequestResult<ClassificationsLabelsResponses, ClassificationsLabelsErrors, ThrowOnError> => (options?.client ?? client).get<ClassificationsLabelsResponses, ClassificationsLabelsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/classifications/labels',
     ...options
 });
 

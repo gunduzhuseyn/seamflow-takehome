@@ -6,7 +6,7 @@ import csv
 import hashlib
 import io
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from typing import Any
 
@@ -29,7 +29,14 @@ from app.worker import WorkerSettings
 from tests.fakes import FakeStorage
 from tests.jobs_support import job_ctx
 from tests.tenancy_registry import insert_classification
-from tests.tenant_support import Tenant, insert_org, tenant
+from tests.tenant_support import (
+    Tenant,
+    TokenFactory,
+    auth_headers,
+    insert_member,
+    insert_org,
+    tenant,
+)
 
 __all__ = ["job_ctx", "tenant"]
 
@@ -550,6 +557,87 @@ async def test_list_filters_newest_first_with_thumbnails(
         assert response.status_code == 422, bad
 
 
+def minute(n: int) -> datetime:
+    """A fixed instant, `n` minutes after an epoch. Rows in one transaction
+    share `now()`, so tests that sort set `created_at` themselves."""
+    return datetime(2026, 1, 1, tzinfo=UTC) + timedelta(minutes=n)
+
+
+async def test_list_pages_with_offset_and_filters_the_question(
+    client: AsyncClient, db_session: AsyncSession, tenant: Tenant
+) -> None:
+    org, user, headers = tenant
+    hot_dogs = [
+        await insert_row(
+            db_session, org, user, status="completed", created_at=minute(n)
+        )
+        for n in range(5)
+    ]
+    pizza = await insert_row(
+        db_session,
+        org,
+        user,
+        status="completed",
+        question_label="pizza",
+        created_at=minute(5),
+    )
+    await db_session.commit()
+    newest_first = [str(row) for row in [pizza, *reversed(hot_dogs)]]
+
+    async def ids(query: str) -> tuple[list[str], int]:
+        response = await client.get(f"/classifications?{query}", headers=headers)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        return [item["id"] for item in data["items"]], data["total"]
+
+    assert await ids("limit=2") == (newest_first[:2], 6)
+    assert await ids("limit=2&offset=2") == (newest_first[2:4], 6)
+    assert await ids("limit=2&offset=6") == ([], 6)
+    assert await ids("question_label=pizza") == ([str(pizza)], 1)
+    assert await ids("question_label=%20Pizza%20") == ([str(pizza)], 1)
+    assert await ids("question_label=hot%20dog&limit=2&offset=1") == (
+        newest_first[2:4],
+        5,
+    )
+    assert await ids("question_label=hot%20dog&status=queued") == ([], 0)
+    for bad in ("offset=-1", "question_label="):
+        response = await client.get(f"/classifications?{bad}", headers=headers)
+        assert response.status_code == 422, bad
+
+
+async def test_labels_are_the_orgs_distinct_questions_newest_first(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    make_token: TokenFactory,
+    tenant: Tenant,
+) -> None:
+    org, user, headers = tenant
+    other_org = await insert_org(db_session, "other")
+    other_user = await insert_member(db_session, other_org, "other", "member")
+    await insert_row(db_session, other_org, other_user, question_label="taco")
+    await db_session.commit()
+
+    empty = await client.get("/classifications/labels", headers=headers)
+
+    assert empty.status_code == 200, empty.text
+    assert empty.json() == []
+
+    for n, label in enumerate(["pizza", "hot dog", "burger", "pizza"]):
+        await insert_row(
+            db_session, org, user, question_label=label, created_at=minute(n)
+        )
+    await db_session.commit()
+
+    labels = await client.get("/classifications/labels", headers=headers)
+    other = await client.get(
+        "/classifications/labels", headers=auth_headers(make_token, "other")
+    )
+
+    assert labels.status_code == 200, labels.text
+    assert labels.json() == ["pizza", "burger", "hot dog"]
+    assert other.json() == ["taco"]
+
+
 async def test_review_sets_the_final_verdict_on_a_completed_row(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -829,6 +917,15 @@ async def test_export_csv_has_the_columns_and_the_filtered_rows(
 
     assert filtered.status_code == 200
     assert len(filtered.text.splitlines()) == 3
+    pizza = await insert_row(db_session, org, user, question_label="pizza")
+    await db_session.commit()
+    by_question = await client.get(
+        "/classifications/export.csv?question_label=Pizza", headers=headers
+    )
+    assert by_question.status_code == 200
+    assert [row["id"] for row in csv.DictReader(io.StringIO(by_question.text))] == [
+        str(pizza)
+    ]
     bad = await client.get("/classifications/export.csv?status=done", headers=headers)
     assert bad.status_code == 422
 

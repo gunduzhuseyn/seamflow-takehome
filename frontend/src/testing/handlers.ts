@@ -107,6 +107,8 @@ export const classificationStore = {
   reviews: [] as { id: string; body: ReviewCreate }[],
   /** Every CSV export request: URL and the Authorization header. */
   exports: [] as { url: string; authorization: string | null }[],
+  /** What GET /classifications/labels returns. */
+  labels: [] as string[],
   reset() {
     this.uploads = [];
     this.puts = [];
@@ -115,17 +117,19 @@ export const classificationStore = {
     this.listRequests = [];
     this.reviews = [];
     this.exports = [];
+    this.labels = [];
   },
 };
 
 type ListFilter = Pick<
   ClassificationOut,
-  "status" | "review_status" | "verdict"
+  "status" | "review_status" | "verdict" | "question_label"
 >;
 const LIST_FILTERS: (keyof ListFilter)[] = [
   "status",
   "review_status",
   "verdict",
+  "question_label",
 ];
 
 /** Applies the contract's list filters from the query string. */
@@ -231,6 +235,7 @@ const classificationHandlers = [
     classificationStore.listRequests.push(request.url);
     const url = new URL(request.url);
     const limit = Number(url.searchParams.get("limit") ?? 50);
+    const offset = Number(url.searchParams.get("offset") ?? 0);
     // A queued row completes on the second list poll that includes it.
     const { listPolls } = classificationStore;
     for (const row of classificationStore.rows) {
@@ -246,8 +251,15 @@ const classificationHandlers = [
     const matching = filterRows(url);
     const items = [...matching]
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
-      .slice(0, limit);
+      .slice(offset, offset + limit);
     return HttpResponse.json({ items, total: matching.length });
+  }),
+
+  http.get(apiUrl("/classifications/labels"), ({ request }) => {
+    if (!authorized(request)) {
+      return unauthorized();
+    }
+    return HttpResponse.json(classificationStore.labels);
   }),
 
   http.post(
@@ -294,7 +306,12 @@ const classificationHandlers = [
     );
     return new HttpResponse(
       ["id,created_at,filename,verdict", ...lines].join("\n"),
-      { headers: { "Content-Type": "text/csv" } },
+      {
+        headers: {
+          "Content-Type": "text/csv",
+          "Content-Disposition": 'attachment; filename="history-export.csv"',
+        },
+      },
     );
   }),
 ];

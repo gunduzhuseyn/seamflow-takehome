@@ -44,6 +44,7 @@ UPLOAD_URL_EXPIRES_SECONDS = 600
 THUMBNAIL_URL_EXPIRES_SECONDS = 3600
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 200
+MAX_LABELS = 50
 CSV_FILENAME = "classifications.csv"
 CSV_COLUMNS = (
     "id",
@@ -90,6 +91,14 @@ class ClassificationCreate(BaseModel):
     question_label: Annotated[
         str, StringConstraints(strip_whitespace=True, to_lower=True)
     ] = DEFAULT_QUESTION_LABEL
+
+
+# The list and export filter: an exact match on the stored, lower-cased label.
+QuestionLabelQuery = Annotated[
+    str | None,
+    StringConstraints(strip_whitespace=True, to_lower=True, min_length=1),
+    Query(),
+]
 
 
 def check_question_label(label: str) -> None:
@@ -292,16 +301,20 @@ async def list_classifications(
     context: OrgContext,
     storage: StorageDep,
     limit: Annotated[int, Query(ge=1, le=MAX_LIMIT)] = DEFAULT_LIMIT,
+    offset: Annotated[int, Query(ge=0)] = 0,
     status: ClassificationStatus | None = None,
     review_status: ReviewStatus | None = None,
     verdict: Verdict | None = None,
+    question_label: QuestionLabelQuery = None,
 ) -> ClassificationList:
     rows, total = await ClassificationRepository(session).list_filtered(
         context.org.id,
         status=status,
         review_status=review_status,
         verdict=verdict,
+        question_label=question_label,
         limit=limit,
+        offset=offset,
     )
     return ClassificationList(
         items=await _to_out(session, storage, list(rows)), total=total
@@ -361,6 +374,15 @@ async def get_metrics(session: SessionDep, context: OrgContext) -> MetricsOut:
     )
 
 
+@router.get("/classifications/labels", name="labels")
+async def list_labels(session: SessionDep, context: OrgContext) -> list[str]:
+    """The distinct questions of the caller's org, most recently used first."""
+    labels = await ClassificationRepository(session).labels(
+        context.org.id, limit=MAX_LABELS
+    )
+    return list(labels)
+
+
 @router.get(
     "/classifications/export.csv",
     name="export_csv",
@@ -373,6 +395,7 @@ async def export_classifications_csv(
     status: ClassificationStatus | None = None,
     review_status: ReviewStatus | None = None,
     verdict: Verdict | None = None,
+    question_label: QuestionLabelQuery = None,
 ) -> StreamingResponse:
     """Every row that matches the list filters, newest first."""
     rows, _ = await ClassificationRepository(session).list_filtered(
@@ -380,6 +403,7 @@ async def export_classifications_csv(
         status=status,
         review_status=review_status,
         verdict=verdict,
+        question_label=question_label,
         limit=None,
     )
     names = await _names(session, list(rows))

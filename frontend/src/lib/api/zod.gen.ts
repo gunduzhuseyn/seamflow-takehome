@@ -293,9 +293,11 @@ export const zClassificationsListHeaders = z.object({
 
 export const zClassificationsListQuery = z.object({
     limit: z.int().gte(1).lte(200).optional().default(50),
+    offset: z.int().gte(0).optional().default(0),
     status: zClassificationStatus.nullish(),
     review_status: zReviewStatus.nullish(),
-    verdict: zVerdict.nullish()
+    verdict: zVerdict.nullish(),
+    question_label: z.string().min(1).nullish()
 });
 
 /**
@@ -323,6 +325,17 @@ export const zClassificationsMetricsHeaders = z.object({
  */
 export const zClassificationsMetricsResponse = zMetricsOut;
 
+export const zClassificationsLabelsHeaders = z.object({
+    'x-org-id': z.uuid().nullish()
+});
+
+/**
+ * Response Classifications-Labels
+ *
+ * Successful Response
+ */
+export const zClassificationsLabelsResponse = z.array(z.string());
+
 export const zClassificationsExportCsvHeaders = z.object({
     'x-org-id': z.uuid().nullish()
 });
@@ -330,7 +343,8 @@ export const zClassificationsExportCsvHeaders = z.object({
 export const zClassificationsExportCsvQuery = z.object({
     status: zClassificationStatus.nullish(),
     review_status: zReviewStatus.nullish(),
-    verdict: zVerdict.nullish()
+    verdict: zVerdict.nullish(),
+    question_label: z.string().min(1).nullish()
 });
 
 export const zClassificationsReviewBody = zReviewCreate;

@@ -160,9 +160,12 @@ class ClassificationRepository(Repository[Classification]):
         status: ClassificationStatus | None = None,
         review_status: ReviewStatus | None = None,
         verdict: Verdict | None = None,
+        question_label: str | None = None,
         limit: int | None,
+        offset: int = 0,
     ) -> tuple[Sequence[Classification], int]:
-        """The newest `limit` rows that match, all when None, and the match count."""
+        """The newest `limit` rows that match after `offset`, all when None, and
+        the match count."""
         conditions = [Classification.org_id == org_id]
         if status is not None:
             conditions.append(Classification.status == status)
@@ -170,6 +173,8 @@ class ClassificationRepository(Repository[Classification]):
             conditions.append(Classification.review_status == review_status)
         if verdict is not None:
             conditions.append(Classification.verdict == verdict)
+        if question_label is not None:
+            conditions.append(Classification.question_label == question_label)
         total = await self.session.scalar(
             select(func.count()).select_from(Classification).where(*conditions)
         )
@@ -177,9 +182,22 @@ class ClassificationRepository(Repository[Classification]):
             select(Classification)
             .where(*conditions)
             .order_by(Classification.created_at.desc(), Classification.id.desc())
+            .offset(offset)
             .limit(limit)
         )
         return rows.all(), total or 0
+
+    async def labels(self, org_id: uuid.UUID, *, limit: int) -> Sequence[str]:
+        """The distinct questions of one org, most recently used first."""
+        latest = func.max(Classification.created_at)
+        rows = await self.session.scalars(
+            select(Classification.question_label)
+            .where(Classification.org_id == org_id)
+            .group_by(Classification.question_label)
+            .order_by(latest.desc(), Classification.question_label)
+            .limit(limit)
+        )
+        return rows.all()
 
     async def find_duplicate(
         self, org_id: uuid.UUID, sha256: str, question_label: str
